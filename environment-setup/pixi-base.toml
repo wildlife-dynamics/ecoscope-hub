@@ -1,0 +1,96 @@
+[project]
+name = "ecoscope-hub"
+channels = [
+    # Uncomment the following line to use local channels for development
+    # "file:///tmp/ecoscope-workflows/release/artifacts/",
+    # "file:///tmp/ecoscope-workflows-custom/release/artifacts/",
+    "https://repo.prefix.dev/ecoscope-workflows/",
+    "https://repo.prefix.dev/ecoscope-workflows-custom/",
+    "conda-forge",
+]
+
+# Multi-platform support - comment out platforms you don't need to speed up solves
+platforms = ["linux-64", "osx-arm64", "osx-64", "win-64"]
+
+[dependencies]
+# Build tools
+curl = "*"
+rattler-build = "*"
+yq = "*"
+hatch = "*"
+
+# Python environment
+python = ">=3.10"
+
+# Package development dependencies
+py-rattler = ">=0.15.0,<0.16"
+
+ecoscope = "*"
+jinja2 = "*"
+geopandas = "*"
+pandera = ">0.24.0"
+pydantic = "<2.9.0"
+pydantic-settings = "*"
+"ruamel.yaml" = "*"
+ruff = "*"
+tomli-w = "*"
+pydeck = { version = "==0.0.1", channel = "https://repo.prefix.dev/ecoscope-workflows-custom" }
+
+# Workflow-specific dependencies (from ecoscope-workflows-core)
+datamodel-code-generator = ">=0.26.3"
+cloudpathlib-gs = "*"
+lithops = { version = "==3.6.0", channel = "https://repo.prefix.dev/ecoscope-workflows" }
+obstore = ">=0.6.0,<0.7"
+pydot = ">=4.0.0"
+graphviz = "*"
+astropy = "*"
+opentelemetry-sdk = ">=1.37.0,<2"
+opentelemetry-exporter-gcp-trace = ">=1.9.0,<2"
+
+# Testing dependencies
+pytest = "*"
+pytest-asyncio = "*"
+pytest-check = "*"
+pandas = "*"
+pyarrow = "*"
+pillow = "*"
+scikit-image = "*"
+syrupy = "*"
+
+# Type checking
+mypy = "*"
+pandas-stubs = "*"
+pandera-mypy = "*"
+
+
+# Task libraries
+ecoscope-workflows-core = ">=0.18.0,<0.19.0"
+ecoscope-workflows-ext-ecoscope = ">=0.18.0,<0.19.0"
+ecoscope-workflows-ext-custom = ">=0.0.7,<0.1.0"
+
+# Task libraries: use local build
+# <package_name> = { version = "*", channel = "<path_to_channel>"}
+# e.g. ecoscope-workflows-ext-custom = { version = "*", channel = "file:///tmp/ecoscope-workflows-custom/release/artifacts/" }
+
+[pypi-dependencies]
+# PyPI-only packages needed for custom workflows
+playwright = "*"
+pytest-playwright = "*"
+python-docx = "*"
+docxtpl = "==0.19.0"
+docxcompose = "*"
+pandasql = "*"
+
+# Type stubs for mypy
+types-shapely = "*"
+types-click = "*"
+
+
+# Note: you can mark your task libraries editable here.
+# Remember to comment out duplicate dependencies above
+# ecoscope-workflows-ext-custom = { path = "<package_path>", editable = true }
+# e.g. ecoscope-workflows-ext-ecoscope = { path = "/Users/yunwu/MEP/ecoscope-workflows/src/ecoscope-workflows-ext-ecoscope", editable = true }
+
+[activation]
+# The activate.sh script runs when you activate the pixi environment, initializing dot for graphviz and playwright
+scripts = ["../dev/activate.sh"]
