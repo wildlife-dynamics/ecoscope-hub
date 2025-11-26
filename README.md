@@ -41,7 +41,7 @@ This starts a new shell with the environment activated. The activation script wi
 - Install playwright chromium browser (required for testing)
 
 >[!TIP]
->Tips: When to use `pixi shell`:
+>When to use `pixi shell`:
 >- First time setup or testing the environment
 >- When you want an isolated shell session with the environment
 >- When you want a clean exit from the environment (just type `exit`)
@@ -54,11 +54,11 @@ eval "$(pixi shell-hook)"
 This activates the environment in your current shell session without starting a new shell.
 
 >[!TIP]
->Tips: When to use `pixi shell-hook`:
+>When to use `pixi shell-hook`:
 >- When you want to maintain the existing environment setup, e.g. environment variables, shell aliases, function or other customization that would be lost in a new shell
 
 >[!TIP]
->Tips: Setting up a shell function for easier activation:
+>Setting up a shell function for easier activation:
 >You can add a bash function to your `~/.bashrc`, `~/.bash_profile`, or `~/.zshrc` to make activation easier. With the `--manifest-path` option, you can specify which environment to activate:
 >```bash
 > function pixi_activate() {
@@ -68,14 +68,13 @@ This activates the environment in your current shell session without starting a 
 >}
 >```
 >After adding this function to your shell configuration file, restart your terminal or source the file. You can then activate the environment by running:
-
 >```bash
 ># Activate environment in current directory
 >pixi_activate
 >
 ># Or activate with a specific manifest path
 >pixi_activate <path_to_env_setup>
-```
+>```
 
 ### Customize Your Development Environment
 
@@ -115,7 +114,8 @@ When actively developing a package, you can make it editable:
 ecoscope-workflows-ext-custom = { path = "/path/to/local/package", editable = true }
 ```
 
-**Important:** Remove any duplicate package definitions from the `[dependencies]` section to avoid conflicts.
+>[!NOTE]
+>Remove any duplicate package definitions from the `[dependencies]` section to avoid conflicts.
 
 **Use a local build of a package:**
 
@@ -162,7 +162,8 @@ The environment includes an activation script (`dev/activate.sh`) that runs auto
 
 ## Useful Commands for Development
 
-**Important:** The commands in this section should be run from their respective directories. Initialize the pixi environment as instructed above. From now on, do NOT use pixi commands that would pick up the local pixi environment.
+>[!NOTE]
+> After initializing the pixi environment as described above, navigate to your task library or workflow directory to run the commands below. Avoid running pixi commands from there, as they would use the local pixi environment configuration and slow down the development process
 
 ### Working with Task Libraries
 
@@ -237,9 +238,9 @@ Options:
 
 ## Troubleshooting
 
-#### Environment Changes Not Taking Effect
+#### Environment Changes Not Taking Effect, Environment Conflicts or Task Not Found
 
-If your configuration changes aren't being applied, try cleaning up the cache manually:
+If your environment changes aren't being applied, try cleaning up the cache manually:
 
 ```bash
 rm -rf .pixi
@@ -272,17 +273,6 @@ If playwright tests fail with browser errors:
 ```bash
 playwright install --with-deps chromium
 ```
-
-#### Environment Conflicts
-
-If you encounter dependency conflicts:
-
-1. Check your `pixi.toml` for version constraints
-2. Try removing the lock file and reinstalling:
-   ```bash
-   rm pixi.lock
-   pixi install
-   ```
 
 ## Development Tips
 
