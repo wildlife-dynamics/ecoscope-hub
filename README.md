@@ -40,10 +40,11 @@ This starts a new shell with the environment activated. The activation script wi
 - Register graphviz plugins (required for workflow visualization)
 - Install playwright chromium browser (required for testing)
 
-*Tips: When to use `pixi shell`:*
-- First time setup or testing the environment
-- When you want an isolated shell session with the environment
-- When you want a clean exit from the environment (just type `exit`)
+>[!TIP]
+>Tips: When to use `pixi shell`:
+>- First time setup or testing the environment
+>- When you want an isolated shell session with the environment
+>- When you want a clean exit from the environment (just type `exit`)
 
 #### Option B: Shell Hook (for existing shell)
 ```bash
@@ -52,30 +53,28 @@ eval "$(pixi shell-hook)"
 
 This activates the environment in your current shell session without starting a new shell.
 
-*Tips: When to use `pixi shell-hook`:*
-- When you want to maintain the existing environment setup, e.g. environment variables, shell aliases, function or other customization that would be lost in a new shell
+>[!TIP]
+>Tips: When to use `pixi shell-hook`:
+>- When you want to maintain the existing environment setup, e.g. environment variables, shell aliases, function or other customization that would be lost in a new shell
 
-*Tips: Setting up a shell function for easier activation:*
+>[!TIP]
+>Tips: Setting up a shell function for easier activation:
+>You can add a bash function to your `~/.bashrc`, `~/.bash_profile`, or `~/.zshrc` to make activation easier. With the `--manifest-path` option, you can specify which environment to activate:
+>```bash
+> function pixi_activate() {
+>    # default to current directory if no path is given
+>    local manifest_path="${1:-.}"
+>    eval "$(pixi shell-hook --manifest-path $manifest_path)"
+>}
+>```
+>After adding this function to your shell configuration file, restart your terminal or source the file. You can then activate the environment by running:
 
-You can add a bash function to your `~/.bashrc`, `~/.bash_profile`, or `~/.zshrc` to make activation easier. With the `--manifest-path` option, you can specify which environment to activate:
-
-**For Bash/Zsh:**
-```bash
-function pixi_activate() {
-    # default to current directory if no path is given
-    local manifest_path="${1:-.}"
-    eval "$(pixi shell-hook --manifest-path $manifest_path)"
-}
-```
-
-After adding this function to your shell configuration file, restart your terminal or source the file. You can then activate the environment by running:
-
-```bash
-# Activate environment in current directory
-pixi_activate
-
-# Or activate with a specific manifest path
-pixi_activate <path_to_env_setup>
+>```bash
+># Activate environment in current directory
+>pixi_activate
+>
+># Or activate with a specific manifest path
+>pixi_activate <path_to_env_setup>
 ```
 
 ### Customize Your Development Environment
@@ -154,14 +153,89 @@ pixi install
 pixi list
 ```
 
-## Activation Script
+### Activation Script
 
 The environment includes an activation script (`dev/activate.sh`) that runs automatically when you activate the environment. It performs:
 
 1. Graphviz plugin registration (`dot -c`)
 2. Playwright browser installation
 
-### Troubleshooting
+## Useful Commands for Development
+
+**Important:** The commands in this section should be run from their respective directories. Initialize the pixi environment as instructed above. From now on, do NOT use pixi commands that would pick up the local pixi environment.
+
+### Working with Task Libraries
+
+Navigate to your task library repository before running these commands.
+
+**Build your task library:**
+
+Builds the conda package for distribution.
+
+```bash
+./publish/build.sh
+```
+
+**Type check your code:**
+
+Runs mypy type checker on the package and tests.
+
+```bash
+cd src/<package_name>
+mypy --package <package_name> --package tests --no-incremental
+```
+
+**Run tests:**
+
+Executes the test suite for your task library.
+
+```bash
+pytest
+```
+
+### Working with Workflows
+
+Navigate to your workflow repository before running these commands.
+
+**Initialize graphviz (if needed):**
+
+Ensures the dot executable is available for workflow visualization.
+
+```bash
+dot -c
+```
+
+**Compile workflow without installation:**
+
+Compiles a workflow specification without installing dependencies. Useful for quick iterations during development.
+
+```bash
+ecoscope-workflows compile --spec <path_to_spec.yaml> --clobber --no-install
+```
+
+Options:
+- `--spec`: Path to your workflow specification file
+- `--clobber`: Overwrite existing compiled workflow
+- `--no-install`: Skip dependency installation (faster for testing)
+
+**Run the compiled workflow:**
+
+Executes the workflow with specified configuration and execution mode.
+
+```bash
+cd ecoscope-workflows-<workflow_id>
+python -m ecoscope_workflows_<workflow_id>.cli run \
+  --config-file <path_to_param.yaml> \
+  --execution-mode sequential \
+  --no-mock-io
+```
+
+Options:
+- `--config-file`: Path to your parameter configuration file
+- `--execution-mode`: Choose between `sequential` or `async` execution. Always use `sequential` for now.
+- `--no-mock-io` or `--mock-io`: Use mock I/O for testing without real data
+
+## Troubleshooting
 
 #### Environment Changes Not Taking Effect
 
