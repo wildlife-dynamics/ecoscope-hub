@@ -12,7 +12,7 @@ fi
 
 # Install playwright browsers
 echo "Installing playwright chromium browser..."
-if playwright install --with-deps chromium 2>&1 | grep -q "chromium"; then
+if playwright install --with-deps chromium > /dev/null 2>&1; then
     echo "✓ Playwright chromium installed successfully"
 else
     echo "⚠ Warning: Failed to install playwright chromium"
