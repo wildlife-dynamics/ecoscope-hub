@@ -92,6 +92,17 @@ def create_repository(
         console.print("[yellow]⚠  You must have admin permission in the organization to create repositories[/yellow]")
         console.print("[dim]Press Enter for personal repository, or type organization name (e.g., wildlife-dynamics)[/dim]")
         org = ask("Organization", default="")
+
+        # Ask for collaborators
+        console.print()
+        console.print("[dim]Note: You will be added as admin by default[/dim]")
+        add_collaborators = confirm("Add additional collaborators?", default=False)
+        if add_collaborators:
+            console.print("[dim]Enter collaborators in format: username:role (e.g., alice:write, bob:read)[/dim]")
+            console.print("[dim]Available roles: read, write, admin, maintain, triage[/dim]")
+            collab_input = ask("Collaborators (comma-separated)", default="")
+            if collab_input:
+                collaborators = collab_input
     else:
         console.print("[dim]Non-interactive mode[/dim]")
 
@@ -106,19 +117,6 @@ def create_repository(
         console.print("[dim]Example: wt-my-workflow, wt-elephant-tracking[/dim]")
         raise SystemExit(1)
 
-    # Display summary
-    console.print()
-    console.print("[bold]Summary:[/bold]")
-    console.print(f"  Name: [cyan]{name}[/cyan]")
-    console.print(f"  Description: [cyan]{description or '(none)'}[/cyan]")
-    console.print(f"  Visibility: [cyan]{'Private' if private else 'Public'}[/cyan]")
-    console.print(f"  Owner: [cyan]{org or 'Personal'}[/cyan]")
-    console.print(f"  Template: [cyan]{template}[/cyan]")
-    console.print()
-
-    if dry_run:
-        console.print("[yellow]Dry run - no changes will be made[/yellow]")
-        return
 
     # Create GitHub client and get current user
     client = create_github_client()
@@ -142,6 +140,35 @@ def create_repository(
             collab_list.insert(0, (current_user, "admin"))
             print_info(f"Adding current user [bold]{current_user}[/bold] as admin")
 
+    # Display summary
+    console.print()
+    console.print("[bold]Summary:[/bold]")
+    console.print(f"  Name: [cyan]{name}[/cyan]")
+    console.print(f"  Description: [cyan]{description or '(none)'}[/cyan]")
+    console.print(f"  Visibility: [cyan]{'Private' if private else 'Public'}[/cyan]")
+    console.print(f"  Owner: [cyan]{org or 'Personal'}[/cyan]")
+    console.print(f"  Template: [cyan]{template}[/cyan]")
+
+    # Show collaborators in summary
+    if collab_list:
+        console.print(f"  Collaborators: [cyan]{len(collab_list)}[/cyan]")
+        for username, role in collab_list:
+            console.print(f"    • [cyan]{username}[/cyan] ({role})")
+    else:
+        console.print(f"  Collaborators: [dim]none[/dim]")
+
+    # Show branch protection status
+    if org:
+        console.print(f"  Branch Protection: [cyan]enabled[/cyan]")
+    else:
+        console.print(f"  Branch Protection: [dim]skipped (personal repo)[/dim]")
+
+    console.print()
+
+    if dry_run:
+        console.print("[yellow]Dry run - no changes will be made[/yellow]")
+        return
+    
     console.print()
     print_step(2, 4, "Creating Repository")
 
