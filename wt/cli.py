@@ -44,7 +44,7 @@ def create(
         typer.Option(
             "--name",
             "-n",
-            help="Repository name",
+            help="Repository name (must start with 'wt-', e.g., 'wt-my-workflow')",
         ),
     ] = "",
     description: Annotated[
@@ -52,14 +52,14 @@ def create(
         typer.Option(
             "--description",
             "-d",
-            help="Repository description",
+            help="Short description of the workflow repository",
         ),
     ] = "",
     private: Annotated[
         bool,
         typer.Option(
             "--private/--public",
-            help="Repository visibility",
+            help="Repository visibility (default: private)",
         ),
     ] = True,
     org: Annotated[
@@ -70,27 +70,19 @@ def create(
             help="Organization name (leave empty for personal repo)",
         ),
     ] = "",
-    template: Annotated[
-        str,
-        typer.Option(
-            "--template",
-            "-t",
-            help="Template repository",
-        ),
-    ] = "wildlife-dynamics/wt-template",
     collaborators: Annotated[
         str,
         typer.Option(
             "--collaborators",
             "-c",
-            help="Comma-separated list of collaborators (format: user1:role1,user2:role2)",
+            help="Comma-separated list: 'user1:role1,user2:role2'. Roles: read, write, admin, maintain, triage",
         ),
     ] = "",
     skip_collaborators: Annotated[
         bool,
         typer.Option(
             "--skip-collaborators",
-            help="Skip adding collaborators",
+            help="Skip the collaborator addition step",
         ),
     ] = False,
     branch_rules: Annotated[
@@ -98,7 +90,7 @@ def create(
         typer.Option(
             "--branch-rules",
             "-b",
-            help="Path to branch rules JSON file",
+            help="Path to JSON file with branch protection rules (e.g., repo-setup/ecoscope_main_branch_rules.json)",
         ),
     ] = "",
     skip_branch_rules: Annotated[
@@ -112,21 +104,36 @@ def create(
         bool,
         typer.Option(
             "--verbose",
-            help="Verbose output",
+            help="Show detailed output for debugging",
         ),
     ] = False,
     dry_run: Annotated[
         bool,
         typer.Option(
             "--dry-run",
-            help="Preview without executing",
+            help="Preview actions without making changes",
         ),
     ] = False,
 ) -> None:
     """
-    Create a new repository from template with collaborators and branch protection.
+    Create a new ecoscope workflow repository from template.
 
-    Interactive mode is used by default when options are not provided.
+    Creates a repository from wildlife-dynamics/wt-template with optional
+    collaborators and branch protection rules.
+
+    Examples:
+
+        # Interactive mode
+        wt create
+
+        # Create with all options
+        wt create --name wt-my-workflow --description "My workflow" --private
+
+        # Create with collaborators
+        wt create --name wt-my-workflow --collaborators "user1:admin,user2:write"
+
+        # Preview without creating
+        wt create --name wt-my-workflow --dry-run
     """
     from wt.commands.create import create_repository
 
@@ -135,7 +142,6 @@ def create(
         description=description,
         private=private,
         org=org,
-        template=template,
         collaborators=collaborators,
         skip_collaborators=skip_collaborators,
         branch_rules=branch_rules,
