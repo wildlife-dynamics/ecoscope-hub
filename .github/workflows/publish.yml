@@ -56,4 +56,4 @@ jobs:
       - name: Publish to prefix.dev
         env:
           PREFIX_API_KEY: ${{ secrets.PREFIX_API_KEY }}
-        run: pixi run --manifest-path pixi.toml -e default push-all
+        run: pixi run --manifest-path pyproject.toml -e default publish/push.sh
