@@ -182,6 +182,33 @@ wt create --name wt-my-workflow --dry-run
 
 Shows a summary of what will be created without making any changes.
 
+## Publishing New Versions
+
+For maintainers: to publish a new version of `wt` to the `ecoscope-workflows-custom` channel:
+
+1. **Merge your changes to main**
+   ```bash
+   git checkout main
+   git pull origin main
+   ```
+
+2. **Create and push a version tag**
+   ```bash
+   # Create a tag (use semantic versioning: v0.1.0, v0.2.0, etc.)
+   git tag v0.1.0
+
+   # Push the tag to GitHub
+   git push origin v0.1.0
+   ```
+
+3. **GitHub Actions will automatically:**
+   - Build the conda package using the version from the git tag
+   - Publish the package to `ecoscope-workflows-custom` on prefix.dev
+
+4. **Verify the publish**
+   - Check the GitHub Actions workflow run
+   - You should be able to see the latest build here: https://prefix.dev/channels/ecoscope-workflows-custom
+
 ## Troubleshooting
 
 ### Authentication Failed

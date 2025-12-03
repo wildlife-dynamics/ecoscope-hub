@@ -1,4 +1,4 @@
-[project]
+[workspace]
 name = "ecoscope-hub"
 channels = [
     # Uncomment the following line to use local channels for development
