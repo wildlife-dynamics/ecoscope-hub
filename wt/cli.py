@@ -85,28 +85,6 @@ def create(
             help="Skip the collaborator addition step",
         ),
     ] = False,
-    branch_rules: Annotated[
-        str,
-        typer.Option(
-            "--branch-rules",
-            "-b",
-            help="Path to JSON file with branch protection rules (e.g., repo-setup/ecoscope_main_branch_rules.json)",
-        ),
-    ] = "",
-    skip_branch_rules: Annotated[
-        bool,
-        typer.Option(
-            "--skip-branch-rules",
-            help="Skip applying branch protection rules",
-        ),
-    ] = False,
-    verbose: Annotated[
-        bool,
-        typer.Option(
-            "--verbose",
-            help="Show detailed output for debugging",
-        ),
-    ] = False,
     dry_run: Annotated[
         bool,
         typer.Option(
@@ -144,9 +122,6 @@ def create(
         org=org,
         collaborators=collaborators,
         skip_collaborators=skip_collaborators,
-        branch_rules=branch_rules,
-        skip_branch_rules=skip_branch_rules,
-        verbose=verbose,
         dry_run=dry_run,
     )
 

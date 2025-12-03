@@ -1,7 +1,10 @@
 """Repository creation command."""
 
+import json
+from pathlib import Path
 from typing import Optional
 
+import requests
 from github import Github
 
 from wt.auth import create_github_client
@@ -15,6 +18,7 @@ from wt.ui.console import (
     print_info,
     print_step,
     print_success,
+    print_warning,
 )
 
 # Valid GitHub repository permission levels
@@ -41,9 +45,6 @@ def create_repository(
     org: str,
     collaborators: str,
     skip_collaborators: bool,
-    branch_rules: str,
-    skip_branch_rules: bool,
-    verbose: bool,
     dry_run: bool,
 ) -> None:
     """
@@ -56,13 +57,12 @@ def create_repository(
         org: Organization name
         collaborators: Comma-separated collaborators
         skip_collaborators: Skip adding collaborators
-        branch_rules: Path to branch rules JSON
-        skip_branch_rules: Skip branch protection
-        verbose: Verbose output
         dry_run: Preview without executing
     """
-    # Template is always the same
+    # Template and branch rules are always the same
     template = "wildlife-dynamics/wt-template"
+    # Branch rules URL - always fetch from GitHub
+    branch_rules_url = "https://raw.githubusercontent.com/wildlife-dynamics/ecoscope-hub/main/repo-setup/ecoscope_main_branch_rules.json"
     print_header("Ecoscope Workflow Repository Creator")
 
     # Interactive mode if name not provided
@@ -209,10 +209,69 @@ def create_repository(
                 print_success(f"Added [bold]{username}[/bold] ({role})")
             except Exception as e:
                 print_error(f"Failed to add {username}: {e}")
-                if verbose:
-                    console.print(f"  [dim]{e}[/dim]")
+                import traceback
+                console.print(f"  [dim]{traceback.format_exc()}[/dim]")
 
-    # TODO: Apply branch protection rules
+    # Apply branch protection rules (only for organization repos)
+    # Note: Repository rulesets require GitHub Pro for personal accounts
+    console.print()
+    print_step(4, 4, "Applying Branch Protection Rules")
+
+    if not org:
+        print_info("Skipping branch protection rules (personal repository)")
+        console.print("[dim]Private repository rulesets require GitHub Pro for personal accounts[/dim]")
+        console.print("[dim]You can manually add branch protection in Settings → Branches[/dim]")
+    else:
+        try:
+            # Fetch rules from GitHub
+            with create_progress() as progress:
+                task = progress.add_task("Fetching branch rules from GitHub...", total=None)
+                rules_response = requests.get(branch_rules_url)
+                progress.update(task, completed=True)
+
+            if rules_response.status_code != 200:
+                print_error(f"Failed to fetch branch rules from GitHub: {rules_response.status_code}")
+                print_info("Skipping branch protection rules")
+            else:
+                rules_data = rules_response.json()
+
+                # Apply ruleset using GitHub REST API
+                # PyGithub doesn't support rulesets yet, so we use requests directly
+                token = client._Github__requester._Requester__auth.token
+                headers = {
+                    "Authorization": f"Bearer {token}",
+                    "Accept": "application/vnd.github+json",
+                    "X-GitHub-Api-Version": "2022-11-28",
+                }
+
+                # Prepare ruleset payload
+                ruleset_payload = {
+                    "name": rules_data.get("name", "Main Branch Rules"),
+                    "target": rules_data.get("target", "branch"),
+                    "enforcement": rules_data.get("enforcement", "active"),
+                    "conditions": rules_data.get("conditions", {}),
+                    "rules": rules_data.get("rules", []),
+                    "bypass_actors": rules_data.get("bypass_actors", []),
+                }
+
+                # Create ruleset
+                api_url = f"https://api.github.com/repos/{new_repo.full_name}/rulesets"
+
+                with create_progress() as progress:
+                    task = progress.add_task("Creating branch protection ruleset...", total=None)
+                    response = requests.post(api_url, headers=headers, json=ruleset_payload)
+                    progress.update(task, completed=True)
+
+                if response.status_code == 201:
+                    print_success("Branch protection rules applied")
+                else:
+                    print_error(f"Failed to apply branch rules: {response.status_code}")
+                    console.print(f"  [dim]{response.text}[/dim]")
+
+        except Exception as e:
+            print_error(f"Failed to apply branch protection rules: {e}")
+            import traceback
+            console.print(f"  [dim]{traceback.format_exc()}[/dim]")
 
     console.print()
     print_success("Repository setup complete!")
