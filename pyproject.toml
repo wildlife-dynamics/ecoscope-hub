@@ -23,6 +23,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.version]
 source = "vcs"
+fallback-version = "9999"
 
 [tool.hatch.build.hooks.vcs]
 version-file = "wt/_version.py"
@@ -42,3 +43,4 @@ wt = { path = ".", editable = true }
 python = ">=3.10"
 rattler-build = "*"
 hatch = "*"
+hatch-vcs = "*"
