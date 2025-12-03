@@ -12,23 +12,43 @@ CLI tool for creating and managing ecoscope workflow repositories with automated
 
 ## Installation
 
-### Option 1: Install in existing pixi environment
+### Option 1: Install in existing pixi project
 
-Add to your `environment-setup/pixi.toml`:
+Add to your project's `pixi.toml`:
 
 ```toml
-[pypi-dependencies]
-wt = { path = "../wt", editable = true }
+[project]
+channels = ["https://repo.prefix.dev/ecoscope-workflows-custom", "conda-forge"]
+
+[dependencies]
+wt = "*"
 ```
 
 Then install:
 
 ```bash
-cd environment-setup
 pixi install
 ```
 
-### Option 2: Standalone installation
+### Option 2: Install from conda channel
+
+Install from an existing conda environment:
+
+```bash
+conda install -c https://repo.prefix.dev/ecoscope-workflows-custom -c conda-forge wt
+```
+
+Or create a new environment:
+
+```bash
+conda create -n wt -c https://repo.prefix.dev/ecoscope-workflows-custom -c conda-forge wt
+conda activate wt
+wt --help
+```
+
+### Option 3: Local development installation
+
+For development or testing the latest unreleased changes:
 
 ```bash
 cd wt
