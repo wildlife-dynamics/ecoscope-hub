@@ -62,7 +62,7 @@ def create_repository(
     # Template and branch rules are always the same
     template = "wildlife-dynamics/wt-template"
     # Branch rules URL - always fetch from GitHub
-    branch_rules_url = "https://raw.githubusercontent.com/wildlife-dynamics/ecoscope-hub/main/repo-setup/ecoscope_main_branch_rules.json"
+    branch_rules_url = "https://raw.githubusercontent.com/wildlife-dynamics/ecoscope-hub/main/resources/ecoscope_main_branch_rules.json"
     print_header("Ecoscope Workflow Repository Creator")
 
     # Interactive mode if name not provided

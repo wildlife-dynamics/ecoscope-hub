@@ -1,6 +1,6 @@
 [project]
 name = "wt"
-version = "0.0.0"
+dynamic = ["version"]
 description = "Ecoscope Workflows CLI - Tool for managing ecoscope repositories"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -18,8 +18,14 @@ dependencies = [
 wt = "wt.cli:app"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "wt/_version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["wt"]
@@ -35,3 +41,4 @@ wt = { path = ".", editable = true }
 [tool.pixi.dependencies]
 python = ">=3.10"
 hatchling = "*"
+hatch-vcs = "*"
