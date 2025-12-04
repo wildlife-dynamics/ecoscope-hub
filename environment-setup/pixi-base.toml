@@ -72,6 +72,10 @@ ecoscope-workflows-ext-custom = ">=0.0.7,<0.1.0"
 # <package_name> = { version = "*", channel = "<path_to_channel>"}
 # e.g. ecoscope-workflows-ext-custom = { version = "*", channel = "file:///tmp/ecoscope-workflows-custom/release/artifacts/" }
 
+
+# Ecoscope Workflows CLI
+wt = "*"
+
 [pypi-dependencies]
 # PyPI-only packages needed for custom workflows
 playwright = "*"
