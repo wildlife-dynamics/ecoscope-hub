@@ -3,8 +3,7 @@
 # Run a workflow's CLI against a test case from test-cases.yaml.
 #
 # Run from inside a workflow repo. Uses the generated workflow's pixi env
-# (ecoscope-workflows-*-workflow/pixi.toml) unless --no-pixi is set or you're
-# already inside a pixi shell ($PIXI_PROJECT_ROOT set).
+# (ecoscope-workflows-*-workflow/pixi.toml) unless --no-pixi is passed.
 #
 # Usage:
 #   pytest-cli.sh <workflow_name> --case <test_case>
@@ -56,11 +55,6 @@ if [ "$run_all" = false ] && [ -z "$test_case" ]; then
 fi
 if [ "$run_all" = true ] && [ -n "$test_case" ]; then
     echo "ERROR: Cannot specify both --all and --case" >&2; exit 1
-fi
-
-# Auto-detect: already inside a pixi shell → skip the wrapper.
-if [ -n "$PIXI_PROJECT_ROOT" ]; then
-    no_pixi=true
 fi
 
 workflow_dash=$(echo "$workflow_name" | tr '_' '-')

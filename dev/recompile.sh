@@ -4,8 +4,9 @@
 #
 # Run from inside a workflow repo (the dir containing spec.yaml + pixi.toml).
 # Uses the repo's own pixi env (which provides wt-compiler) unless --no-pixi
-# is set or you're already inside a pixi shell ($PIXI_PROJECT_ROOT set), in
-# which case it calls wt-compiler directly off PATH.
+# is passed, in which case it calls wt-compiler directly off PATH (e.g. when
+# running from inside an env like `pixi shell -w ecoscope-tasks` that has
+# wt-compiler installed editable).
 #
 # Usage: recompile.sh [--no-pixi] [compiler-flags...]
 
@@ -19,11 +20,6 @@ for arg in "$@"; do
         *) compiler_flags+=("$arg") ;;
     esac
 done
-
-# If already in a pixi shell, skip the pixi run wrapper.
-if [ -n "$PIXI_PROJECT_ROOT" ]; then
-    no_pixi=true
-fi
 
 if [ ! -f spec.yaml ]; then
     echo "ERROR: spec.yaml not found in $(pwd). Run from inside a workflow repo." >&2
