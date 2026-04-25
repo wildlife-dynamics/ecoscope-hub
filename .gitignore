@@ -212,3 +212,5 @@ __marimo__/
 
 .claude
 monitor/build/
+.DS_Store
+.github/.DS_Store

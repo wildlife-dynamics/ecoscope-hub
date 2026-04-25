@@ -18,12 +18,12 @@ curl = "*"
 rattler-build = "*"
 yq = "*"
 hatch = "*"
+pip = "*"
 
 # Python environment
 python = ">=3.10"
 
-# Package development dependencies
-py-rattler = ">=0.15.0,<0.16"
+# Package development dependencies (py-rattler in feature.ecoscope-workflows below to avoid conflict with wt env)
 
 ecoscope = "*"
 jinja2 = "*"
@@ -98,3 +98,41 @@ types-click = "*"
 [activation]
 # The activate.sh script runs when you activate the pixi environment, initializing dot for graphviz and playwright
 scripts = ["../dev/activate.sh"]
+
+# =============================================================================
+# wt framework environment (pixi shell -e wt)
+# =============================================================================
+
+[feature.wt.dependencies]
+python = ">=3.10"
+py-rattler = ">=0.22.0,<0.23.0"
+datamodel-code-generator = "==0.42.1"
+pydantic = ">=2.0.0,<3.0.0"
+"ruamel.yaml" = ">=0.17.0"
+jinja2 = "*"
+pydot = ">=1.4.0"
+ruff = ">=0.1.0"
+tomli-w = ">=1.0.0"
+graphviz = "*"
+obstore = ">=0.6.0"
+numpy = ">=2,<2.1"
+proj = "*"
+gdal = "*"
+cxx-compiler = "*"
+ecoscope = "*"
+pytest = "*"
+
+# wt framework packages
+wt = "*"
+wt-contracts = "*"
+wt-registry = "*"
+wt-compiler = "*"
+wt-task = "*"
+wt-invokers = "*"
+
+[feature.ecoscope-workflows.dependencies]
+py-rattler = ">=0.15.0,<0.16"
+
+[environments]
+default = ["ecoscope-workflows"]
+wt = { features = ["wt"], no-default-feature = true }
