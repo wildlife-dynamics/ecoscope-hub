@@ -4,28 +4,20 @@
 # The vendored copies are what CI invokes; this script keeps them in sync
 # with the source of truth (this dir).
 #
+# Default target list lives in sync-targets.yaml (next to this script).
+#
 # Usage:
-#   sync.sh                           # sync to all repos in DEFAULT_TARGETS
+#   sync.sh                           # sync to all repos in sync-targets.yaml
 #   sync.sh <repo_path> [repo_path]   # sync to specified repo(s) only
 #   sync.sh --check                   # exit non-zero if any target is out of sync
 
 set -e
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+targets_file="$script_dir/sync-targets.yaml"
 
 # Files to sync into each target's dev/ folder.
 FILES=(recompile.sh pytest-cli.sh activate.sh)
-
-# Default target list: workflow repos under ~/MEP/wt-workflows/.
-# Edit this list as repos are added or removed.
-DEFAULT_TARGETS=(
-    "$HOME/MEP/wt-workflows/wt-ndvi"
-    "$HOME/MEP/wt-workflows/wt-trajectory-map"
-    "$HOME/MEP/wt-workflows/wt-hydrological-monitoring"
-    "$HOME/MEP/wt-workflows/wt-download-events"
-    "$HOME/MEP/wt-workflows/wt-download-patrols"
-    "$HOME/MEP/wt-workflows/wt-download-subjects"
-)
 
 check_only=false
 targets=()
@@ -33,7 +25,7 @@ for arg in "$@"; do
     case $arg in
         --check) check_only=true ;;
         -h|--help)
-            sed -n '2,11p' "$0" | sed 's/^# //; s/^#//'
+            sed -n '2,12p' "$0" | sed 's/^# //; s/^#//'
             exit 0
             ;;
         *) targets+=("$arg") ;;
@@ -41,7 +33,18 @@ for arg in "$@"; do
 done
 
 if [ ${#targets[@]} -eq 0 ]; then
-    targets=("${DEFAULT_TARGETS[@]}")
+    if ! command -v yq >/dev/null 2>&1; then
+        echo "ERROR: yq not found on PATH. Install go-yq or pass repo paths as args." >&2
+        exit 1
+    fi
+    if [ ! -f "$targets_file" ]; then
+        echo "ERROR: $targets_file not found." >&2
+        exit 1
+    fi
+    while IFS= read -r path; do
+        # Expand leading ~ to $HOME (yaml does not do this).
+        targets+=("${path/#\~/$HOME}")
+    done < <(yq '.targets[]' "$targets_file" | tr -d '"\r')
 fi
 
 drift=0
