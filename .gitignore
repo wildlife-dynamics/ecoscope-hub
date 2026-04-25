@@ -211,3 +211,5 @@ marimo/_lsp/
 __marimo__/
 
 .claude
+.DS_Store
+.github/.DS_Store
