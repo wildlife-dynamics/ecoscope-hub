@@ -11,7 +11,7 @@
 #
 # Flags:
 #   --no-pixi      Skip pixi run wrapper; assume active env has the workflow installed.
-#   --skip-setup   Skip pixi update + activate.sh (graphviz/playwright init).
+#   --skip-setup   Skip pixi update + setup-test.sh (playwright install).
 #   --quiet, -q    Minimal output: only show pass/fail and errors.
 
 set -e
@@ -44,7 +44,7 @@ Usage: $0 <workflow_name> <--all | --case test_case_name> [flags]
   --case <name>   Run a specific test case
   --all           Run all test cases for the workflow
   --no-pixi       Skip pixi run wrapper; assume active env has the workflow installed
-  --skip-setup    Skip pixi update + activate.sh (graphviz/playwright init)
+  --skip-setup    Skip pixi update + setup-test.sh (playwright install)
   --quiet, -q     Minimal output: only show pass/fail and errors
 EOF
 }
@@ -96,8 +96,8 @@ fi
 if [ "$skip_setup" = false ] && [ "$no_pixi" = false ]; then
     [ "$quiet" = false ] && echo "Updating pixi env: $manifest_path"
     pixi update --manifest-path "$manifest_path"
-    [ "$quiet" = false ] && echo "Running activate.sh (graphviz + playwright)..."
-    run_cmd bash "$script_dir/activate.sh"
+    [ "$quiet" = false ] && echo "Running setup-test.sh (playwright install)..."
+    run_cmd bash "$script_dir/setup-test.sh"
 elif [ "$quiet" = false ]; then
     echo "Skipping setup (--skip-setup or --no-pixi)"
 fi

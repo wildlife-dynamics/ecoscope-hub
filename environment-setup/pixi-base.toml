@@ -96,8 +96,8 @@ types-click = "*"
 # e.g. ecoscope-workflows-ext-ecoscope = { path = "/Users/yunwu/MEP/ecoscope-workflows/src/ecoscope-workflows-ext-ecoscope", editable = true }
 
 [activation]
-# The activate.sh script runs when you activate the pixi environment, initializing dot for graphviz and playwright
-scripts = ["../dev/activate.sh"]
+# Initialize compile-time deps (graphviz) and test-time deps (playwright) on shell activation.
+scripts = ["../dev/setup-compile.sh", "../dev/setup-test.sh"]
 
 # =============================================================================
 # wt framework environment (pixi shell -e wt)

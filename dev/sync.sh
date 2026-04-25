@@ -17,7 +17,7 @@ script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 targets_file="$script_dir/sync-targets.yaml"
 
 # Files to sync into each target's dev/ folder.
-FILES=(recompile.sh pytest-cli.sh activate.sh)
+FILES=(recompile.sh pytest-cli.sh setup-compile.sh setup-test.sh)
 
 check_only=false
 targets=()

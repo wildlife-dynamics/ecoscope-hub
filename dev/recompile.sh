@@ -12,6 +12,8 @@
 
 set -e
 
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
 no_pixi=false
 compiler_flags=()
 for arg in "$@"; do
@@ -39,8 +41,7 @@ else
     pixi update --manifest-path pixi.toml
 fi
 
-# (re)initialize dot executable to ensure graphviz is available
-run_cmd dot -c
+run_cmd bash "$script_dir/setup-compile.sh"
 
 flags="${compiler_flags[*]}"
 echo "recompiling spec.yaml with flags '--clobber ${flags}'"
