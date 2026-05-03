@@ -66,10 +66,10 @@ apply_ruleset() {
 
   if [ -n "$existing_id" ]; then
     echo "==> Updating ruleset '$name' (id=$existing_id)"
-    echo "$payload" | gh api --method PUT "repos/$REPO/rulesets/$existing_id" --input - >/dev/null
+    echo "$payload" | gh api --method PUT "repos/$REPO/rulesets/$existing_id" --input - --jq '"   ok: \(.name) (id=\(.id))"'
   else
     echo "==> Creating ruleset '$name'"
-    echo "$payload" | gh api --method POST "repos/$REPO/rulesets" --input - >/dev/null
+    echo "$payload" | gh api --method POST "repos/$REPO/rulesets" --input - --jq '"   ok: \(.name) (id=\(.id))"'
   fi
 }
 
