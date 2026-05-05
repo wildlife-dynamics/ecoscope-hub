@@ -213,3 +213,5 @@ __marimo__/
 .claude
 .DS_Store
 .github/.DS_Store
+
+dev/sync-targets.yaml
