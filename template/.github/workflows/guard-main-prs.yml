@@ -1,0 +1,21 @@
+name: Guard main PRs
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, synchronize, edited]
+
+jobs:
+  check-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify PR source is staging or patch-*
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          if [[ "$HEAD_REF" == "staging" ]] || [[ "$HEAD_REF" == patch-* ]]; then
+            echo "PR source '$HEAD_REF' is allowed."
+          else
+            echo "::error::PRs to main must come from 'staging' or 'patch-*'. Got: '$HEAD_REF'"
+            exit 1
+          fi

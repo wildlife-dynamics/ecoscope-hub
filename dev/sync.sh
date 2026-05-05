@@ -1,8 +1,8 @@
 #!/bin/bash
 #
-# Copy the canonical dev scripts into each workflow repo's dev/ folder.
-# The vendored copies are what CI invokes; this script keeps them in sync
-# with the source of truth (this dir).
+# Mirror the canonical infra (dev/ scripts + .github/workflows/ CI) from
+# ../template/ into each workflow repo. The template tree mirrors the target
+# layout 1:1, so this is a thin rsync wrapper.
 #
 # Default target list lives in sync-targets.yaml (next to this script).
 #
@@ -14,10 +14,8 @@
 set -e
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+template_dir="$script_dir/../template"
 targets_file="$script_dir/sync-targets.yaml"
-
-# Files to sync into each target's dev/ folder.
-FILES=(recompile.sh pytest-cli.sh setup-compile.sh setup-test.sh)
 
 check_only=false
 targets=()
@@ -32,6 +30,11 @@ for arg in "$@"; do
     esac
 done
 
+if [ ! -d "$template_dir" ]; then
+    echo "ERROR: template dir not found at $template_dir" >&2
+    exit 1
+fi
+
 if [ ${#targets[@]} -eq 0 ]; then
     if ! command -v yq >/dev/null 2>&1; then
         echo "ERROR: yq not found on PATH. Install go-yq or pass repo paths as args." >&2
@@ -42,7 +45,6 @@ if [ ${#targets[@]} -eq 0 ]; then
         exit 1
     fi
     while IFS= read -r path; do
-        # Expand leading ~ to $HOME (yaml does not do this).
         targets+=("${path/#\~/$HOME}")
     done < <(yq '.targets[]' "$targets_file" | tr -d '"\r')
 fi
@@ -53,23 +55,19 @@ for target in "${targets[@]}"; do
         echo "skip: $target (not a directory)" >&2
         continue
     fi
-    target_dev="$target/dev"
-    mkdir -p "$target_dev"
-
-    for f in "${FILES[@]}"; do
-        src="$script_dir/$f"
-        dst="$target_dev/$f"
-        if [ "$check_only" = true ]; then
-            if ! cmp -s "$src" "$dst"; then
-                echo "DRIFT: $dst differs from $src"
-                drift=1
-            fi
-        else
-            cp "$src" "$dst"
-            chmod +x "$dst"
-            echo "synced: $dst"
+    if [ "$check_only" = true ]; then
+        # --checksum so mtime-only drift doesn't get flagged. -i emits a line
+        # per file that would change; keep only file-transfer lines.
+        out=$(rsync -ai --checksum --dry-run "$template_dir/" "$target/" | grep -E '^>f' || true)
+        if [ -n "$out" ]; then
+            echo "DRIFT in $target:"
+            echo "$out" | sed 's/^/  /'
+            drift=1
         fi
-    done
+    else
+        rsync -a "$template_dir/" "$target/"
+        echo "synced: $target"
+    fi
 done
 
 if [ "$check_only" = true ]; then
