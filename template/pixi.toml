@@ -1,0 +1,18 @@
+[workspace]
+name = "<workflow-repo-name>"
+channels = ['https://repo.prefix.dev/ecoscope-workflows/', 'conda-forge']
+platforms = ['linux-64', 'osx-arm64', 'win-64']
+
+[tool.wt]
+# When true, PRs to `main` must come from `staging` or `patch-*` (enforced by
+# .github/workflows/guard-main-prs.yml). Set to false for repos that have not
+# cut a release yet to allow PRs directly to `main`.
+published = false
+
+[dependencies]
+# required for compilation
+wt-compiler = ">=0.5.2, <0.6.0"
+graphviz = "*"
+
+# required for testing
+go-yq = "*"

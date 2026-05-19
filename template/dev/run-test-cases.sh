@@ -194,6 +194,13 @@ run_single_test_case() {
     if yq -e ".\"${test_case}\" | has(\"mock_io_overrides\")" "$test_cases_file" > /dev/null 2>&1; then
         while IFS= read -r dotted_path; do
             file_path=$(yq -r ".\"${test_case}\".mock_io_overrides.\"${dotted_path}\"" "$test_cases_file")
+            # Resolve repo-relative paths to absolute. Leave URLs and absolute
+            # paths untouched. The mock loader requires absolute paths because
+            # it calls Path.as_uri().
+            case "$file_path" in
+                /*|http://*|https://*|file://*) ;;
+                *) file_path="${repo_root}/${file_path#./}" ;;
+            esac
             env_name="WT_TASK_MOCK_IO__$(echo "$dotted_path" | tr '.' '_' | tr '[:lower:]' '[:upper:]')"
             export "$env_name"="$file_path"
             _mock_override_vars+=("$env_name")
