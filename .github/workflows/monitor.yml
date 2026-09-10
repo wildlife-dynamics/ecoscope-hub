@@ -25,6 +25,9 @@ jobs:
     env:
       MONITOR_PAT: ${{ secrets.MONITOR_PAT }}
       GITHUB_TOKEN: ${{ github.token }}
+    defaults:
+      run:
+        working-directory: monitor
     steps:
       - uses: actions/checkout@v4
       - uses: prefix-dev/setup-pixi@v0.8.10
@@ -32,13 +35,13 @@ jobs:
           pixi-version: v0.57.0
           manifest-path: monitor/pixi.toml
       - name: Test
-        run: pixi run --manifest-path monitor/pixi.toml pytest -q tests --ignore=tests/test_live.py
+        run: pixi run pytest -q tests --ignore=tests/test_live.py
       - name: Discover unregistered workflow repos
-        run: pixi run --manifest-path monitor/pixi.toml python discover.py --json > "$GITHUB_WORKSPACE/unregistered.json"
+        run: pixi run python discover.py --json > "$GITHUB_WORKSPACE/unregistered.json"
       - name: Collect snapshot
-        run: pixi run --manifest-path monitor/pixi.toml python collect.py --unregistered "$GITHUB_WORKSPACE/unregistered.json"
+        run: pixi run python collect.py --unregistered "$GITHUB_WORKSPACE/unregistered.json"
       - name: Assemble site
-        run: cp monitor/index.html monitor/build/index.html
+        run: cp index.html build/index.html
       - uses: actions/upload-pages-artifact@v3
         with:
           path: monitor/build

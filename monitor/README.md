@@ -19,6 +19,7 @@ To find workflow repos that are not registered yet:
 
 ## Run locally
 
+    cd monitor
     export MONITOR_PAT=$(gh auth token)      # needs read:project for epic fields
     pixi run discover -- --json > build/unregistered.json
     pixi run collect -- --unregistered build/unregistered.json
@@ -28,6 +29,7 @@ To find workflow repos that are not registered yet:
 
 ## Tests
 
+    cd monitor
     pixi run test                            # unit tests, no network
     MONITOR_PAT=$(gh auth token) pixi run test -- tests/test_live.py   # live smoke test
 
