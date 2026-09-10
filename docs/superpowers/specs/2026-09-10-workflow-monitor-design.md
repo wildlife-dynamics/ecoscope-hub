@@ -6,11 +6,11 @@ Status: approved in conversation, awaiting written review
 ## Purpose
 
 A single page where the internal team can see every ecoscope workflow the org maintains,
-who it is for, where it is in its development lifecycle, whether and at which version it is
-available on Ecoscope Desktop and the web platform, what it produces (deliverables,
-components, indicators), whether CI is green, and which GitHub issues are open. It must
-answer fleet-wide questions such as "which workflows calculate NDVI" and "is there a map of
-last-visited patrol areas", and present workflows in priority order.
+which GitHub Projects it belongs to, where it is in its development lifecycle, whether and at
+which version it is available on Ecoscope Desktop and the web platform, what it produces
+(deliverables, components, indicators), whether CI is green, and which GitHub issues are
+open. It must answer fleet-wide questions such as "which workflows calculate NDVI" and "is
+there a map of last-visited patrol areas", and present workflows in priority order.
 
 Audience: the internal team. Delivery: a public GitHub Pages site built on a schedule by a
 GitHub Actions workflow in `ecoscope-hub`. The org is on the GitHub **Team** plan, so Pages
@@ -21,12 +21,13 @@ in-page editing) reuses the collector and page unchanged; it is out of scope her
 
 | Field group | Owner | Where |
 |---|---|---|
-| Which workflows exist, organization, lifecycle status, priority rank, notes | ecoscope-hub | `monitor/registry.yaml` |
+| Which workflows exist, and the epic issue for each | ecoscope-hub | `monitor/registry.yaml` |
+| Lifecycle status, priority, size, Project membership, tracked sub-issues | GitHub Projects | the epic issue's project items (Wildlife Dynamics project #9 first) and sub-issues, via GraphQL |
 | Name, description, maintainers, outputs → components → indicators | each workflow repo | `metadata:` block in `spec.yaml` on the default branch |
 | Canonical indicator vocabulary | ecoscope-hub | `monitor/indicators.yaml` |
 | Desktop availability + version | derived | repo is public **and** listed in the Desktop catalog JSON; version from `VERSION.yaml` on `main` |
 | Web availability + version | derived | repo is public **and** has an `ecoscope-web` branch; version from `VERSION.yaml` on that branch |
-| Repo visibility, CI status, open issues | derived | GitHub API on every build |
+| Repo visibility, CI status, repo open issues | derived | GitHub API on every build |
 
 Rule: **a private repo is never shown as available on Desktop or Web**, regardless of catalog
 or branch state. Visibility is read from the API on every build.
@@ -40,20 +41,36 @@ later addition, not built now.)
 ```yaml
 workflows:
   - id: wt-ndvi                       # unique key; display name fallback when metadata is absent
-    repo: wildlife-dynamics/wt-ndvi   # optional when status is "Not Started"
-    organization: general             # free text; "general" for non-partner work
-    status: Work in Progress          # exactly one of the four values below
-    priority: 3                       # integer rank, 1 = most important; optional
-    notes: waiting on GEE key         # optional free text
+    repo: wildlife-dynamics/wt-ndvi   # optional when the workflow has no repo yet
+    epic: https://github.com/wildlife-dynamics/wt-ndvi/issues/1   # the workflow's epic issue
 ```
 
-Lifecycle status values: `Not Started`, `Work in Progress`, `Review Required`, `Deprecated`.
+Nothing else is stored here. Status, priority, size, and project membership are managed on
+the epic in GitHub Projects and read on every build.
 
-Validation (build fails on violation): unknown status, duplicate `id`, non-integer priority,
-`repo` missing when status is not `Not Started`. Duplicate priorities only warn.
+Validation (build fails on violation): duplicate `id`, `epic` not a GitHub issue URL, neither
+`repo` nor `epic` present.
 
-Editing: the page links each row to `registry.yaml` in GitHub's web editor. Committing there
-triggers a rebuild. No in-page writes.
+Editing: the page links each row to its epic (edit status/priority there) and to
+`registry.yaml` in GitHub's web editor (add or retire a workflow). Committing there triggers a
+rebuild. No in-page writes.
+
+## Epic — what is read from it
+
+One GraphQL query per epic (header `GraphQL-Features: issue_types`):
+
+- `title`, `state`, `url`, `issueType.name`. Accepted types: `Workflow` and `Epic`; any other
+  type is recorded as an error on the record but the fields are still used.
+- `projectItems`: for each project the epic is in, the project title, number, and URL, and its
+  single-select field values. `status`, `priority`, `size` come from the **Wildlife Dynamics**
+  project (#9) item when present, else from the first project item that has those fields.
+  Vocabulary is whatever the Project defines today: Status `Backlog | Ready | In progress |
+  In review | Done`; Priority `P0..P3`; Size `XS..XL`. The collector copies values verbatim
+  and does not validate them.
+- `projects`: the list of all projects the epic belongs to. This replaces an "organization"
+  field — partner projects such as Eden or TAAF are the organization signal.
+- `subIssues` (paginated): number, title, state, url, repo, issue type; plus
+  `subIssuesSummary` (`total`, `completed`). Sub-issues may live in any repo.
 
 ## Indicator vocabulary — `monitor/indicators.yaml`
 
@@ -109,7 +126,13 @@ get `spec_missing: true`. Both still produce a row.
   "workflows": [
     {
       "id": "wt-ndvi", "repo": "wildlife-dynamics/wt-ndvi",
-      "organization": "general", "status": "Work in Progress", "priority": 3, "notes": "",
+      "epic": {"url": "https://github.com/wildlife-dynamics/wt-ndvi/issues/1",
+               "title": "NDVI Workflow", "state": "OPEN", "type": "Workflow",
+               "status": "In progress", "priority": "P1", "size": "M",
+               "projects": [{"number": 9, "title": "Wildlife Dynamics", "url": "..."}],
+               "sub_issues": [{"number": 741, "repo": "wildlife-dynamics/ecoscope",
+                               "title": "...", "state": "OPEN", "type": "Bug", "url": "..."}],
+               "sub_issues_total": 2, "sub_issues_completed": 0},
       "visibility": "public", "archived": false,
       "name": "NDVI Workflow", "description": "...", "maintainers": [],
       "outputs": [{"name": "...", "type": "dashboard", "description": "...",
@@ -128,13 +151,16 @@ get `spec_missing: true`. Both still produce a row.
 }
 ```
 
-`indicators` is the de-duplicated union over all components, for filtering.
+`indicators` is the de-duplicated union over all components, for filtering. `epic` is `null`
+when the registry entry has no epic or it could not be read.
 
 ## Collector — `monitor/collect.py`
 
 Single file; dependencies `requests` and `pyyaml` from the hub pixi env. Per registry entry,
 in order, each step recording an error string and continuing on failure:
 
+0. Epic GraphQL query (see "Epic — what is read from it"). Missing or inaccessible epic →
+   error, `epic: null`, continue with the repo steps. Entries without `repo` stop here.
 1. `GET /repos/{repo}` → visibility, archived, default branch. 404 → error, skip the rest.
 2. `spec.yaml` from the default branch → parse `metadata:`; normalise outputs and indicators.
 3. Availability (public repos only):
@@ -145,11 +171,11 @@ in order, each step recording an error string and continuing on failure:
      the repo is not in the catalog, the path is inferred from the generated package dir
      (`<something>-workflow/VERSION.yaml`, discovered via the repo tree).
 4. Latest `test.yml` run on the default branch → `conclusion`, `html_url`; null if absent.
-5. Open issues (`state=open`, excluding items with `pull_request`) → number, title, url,
-   labels, created_at, assignee login.
+5. Open issues in the repo (`state=open`, excluding items with `pull_request`) → number,
+   title, url, labels, created_at, assignee login.
 
 One HTTP helper handles the token, pagination, and a bounded retry on 403 rate-limit
-responses. ~6 calls per repo; well under the 1000/hour limit for an Actions token.
+responses. ~7 calls per repo; well under the limits for a PAT.
 
 `--registry`, `--out`, `--only <id>` flags for local runs. Exit non-zero only on invalid
 registry or an uncaught exception.
@@ -160,8 +186,8 @@ registry or an uncaught exception.
 2. A repo is a workflow repo iff it has `spec.yaml` at its root.
 3. Compare with the registry and report three groups: workflow repos missing from the
    registry, registry entries whose repo is gone or archived, org repos without `spec.yaml`.
-4. `--add` appends missing workflow repos to `registry.yaml` as stubs
-   (`status: Work in Progress`, `organization: ""`, no priority). Default is report-only.
+4. `--add` appends missing workflow repos to `registry.yaml` as stubs with `id` and `repo`
+   and `epic` left empty (the page badges entries without an epic). Default is report-only.
 5. `--json` prints the missing group for the collector, which embeds it as `unregistered`.
 
 ## Action — `.github/workflows/monitor.yml`
@@ -173,10 +199,11 @@ Steps: checkout → setup-pixi → `pytest monitor/tests` → `discover.py --jso
 `collect.py --out build/data.json` → copy `monitor/index.html` to `build/` →
 `actions/upload-pages-artifact` → `actions/deploy-pages`.
 
-Token: `GITHUB_TOKEN` by default. If a repo secret `MONITOR_PAT` (fine-grained; read on
-contents, issues, actions, metadata for the org) is present it is used instead so private
-repos in the registry resolve. Tests failing or the collector crashing prevents deploy; the
-previous site stays up.
+Token: the default `GITHUB_TOKEN` cannot read org Projects, so a repo secret `MONITOR_PAT`
+(fine-grained; org **Projects: read**, plus read on contents, issues, actions, metadata) is
+required. Without it the job still runs but every epic records an error and the page shows
+no status/priority; private repos also fail to resolve. Tests failing or the collector
+crashing prevents deploy; the previous site stays up.
 
 ## Page — `monitor/index.html`
 
@@ -185,27 +212,32 @@ Workflow Monitor". Light/dark via `prefers-color-scheme`. Works at phone width; 
 horizontally inside their container.
 
 **Header**: title; "generated N minutes ago" (amber when older than 12 h); links to the
-Actions page (rebuild) and to `registry.yaml` in GitHub's editor.
+Actions page (rebuild), to the Wildlife Dynamics project, and to `registry.yaml` in GitHub's
+editor.
 
 **Tabs**: Workflows, Outputs.
 
 **Workflows tab**
-- Filter bar: text search over id, name, indicators; dropdowns for organization, status,
-  output type, availability (Desktop / Web / none). Filter state lives in the URL hash.
-- Table, default sort by priority rank ascending (missing last, ties by name), any column
-  sortable:
-  `Priority | Workflow | Organization | Status | Desktop | Web | Outputs | Indicators | CI | Issues`
+- Filter bar: text search over id, name, indicators; dropdowns for project, status,
+  priority, output type, availability (Desktop / Web / none). Filter state lives in the URL
+  hash.
+- Table, default sort by priority (P0 first, missing last), then status in project order,
+  then name; any column sortable:
+  `Priority | Workflow | Projects | Status | Epic | Desktop | Web | Outputs | Indicators | CI | Open work`
+  `Epic` is a link to the epic issue; `Open work` is open sub-issues + repo open issues.
 - Badges in the Workflow cell for `metadata_missing`, `spec_missing`, `visibility: private`,
-  `archived`, and `errors`. Status and CI colour-coded.
-- Row click expands a drill-down (one open at a time; open id in the URL hash): description,
-  maintainers, each deliverable with its components (type, description, indicators), last CI
-  run link, "Edit in registry" link, notes, and the open issues list (number, title, labels,
-  age, assignee) each linking to GitHub.
+  `archived`, no epic, and `errors`. Status, priority, and CI colour-coded.
+- Row click expands a drill-down (one open at a time; open id in the URL hash): epic link with
+  its state, size, and sub-issue progress; description; maintainers; each deliverable with its
+  components (type, description, indicators); last CI run link; "Edit in registry" link; then
+  two issue lists, each item linking to GitHub: **Tracked work** (the epic's sub-issues,
+  open first, with repo, type, and state) and **Repo issues** (the repo's open issues with
+  number, title, labels, age, assignee).
 
 **Outputs tab**
 - One row per component across the fleet:
   `Workflow | Deliverable | Deliverable type | Component | Component type | Description | Indicators`
-- Filters: indicator, component type, deliverable type, organization; text search over
+- Filters: indicator, component type, deliverable type, project; text search over
   component name and description. Clicking the workflow cell jumps to its drill-down.
 
 **Unregistered panel**: collapsed section at the bottom listing `unregistered` repos with a
@@ -216,11 +248,13 @@ link to each and to `registry.yaml`.
 ## Testing
 
 - `monitor/tests/test_collect.py` — flat pytest functions; GitHub client replaced by a fake
-  keyed on URL. Cases: registry validation (bad status, duplicate id, missing repo); flat and
-  nested outputs normalise identically; private repo → null availability even when in the
+  keyed on URL. Cases: registry validation (duplicate id, bad epic URL, neither repo nor
+  epic); epic parsing (status/priority from project #9 preferred over another project,
+  sub-issue pagination, non-Workflow type recorded as error, missing epic yields null); flat
+  and nested outputs normalise identically; private repo → null availability even when in the
   catalog; missing `ecoscope-web` branch → null web version; unknown indicator flagged;
   alias mapping; 404 on one repo isolates to that record; issues exclude pull requests;
-  priority sort order helper.
+  priority/status sort order helper.
 - `monitor/tests/test_discover.py` — root `spec.yaml` detection; three-group diff.
 - One live smoke test, skipped without a token, running `collect.py --only wt-ndvi` and
   asserting metadata and a desktop version are present.
@@ -230,5 +264,5 @@ link to each and to `registry.yaml`.
 ## Out of scope (for now)
 
 In-page editing; private hosting; snapshot history; web availability read from
-ecoscope-server; PR listings; migrating the other 22 repos' metadata (the flat/absent shapes
-render with badges instead).
+ecoscope-server; PR listings; writing to Projects; migrating the other 22 repos' metadata
+(the flat/absent shapes render with badges instead).
