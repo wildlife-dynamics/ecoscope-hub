@@ -1,0 +1,11 @@
+# Workflow repos that get the canonical dev scripts synced in.
+# Edit this list as repos are added or removed.
+# Paths starting with ~ are expanded to $HOME at sync time.
+targets:
+  - ~/MEP/wt-workflows/wt-ndvi
+  - ~/MEP/wt-workflows/wt-trajectory-map
+  - ~/MEP/wt-workflows/wt-hydrological-monitoring
+  - ~/MEP/wt-workflows/wt-download-events
+  - ~/MEP/wt-workflows/wt-download-patrols
+  - ~/MEP/wt-workflows/wt-download-subjects
+  - ~/MEP/wt-workflows/patrol-event-sum-map

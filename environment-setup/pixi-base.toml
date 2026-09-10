@@ -1,138 +1,104 @@
 [workspace]
-name = "ecoscope-hub"
+name = "ecoscope-dev"
 channels = [
-    # Uncomment the following line to use local channels for development
-    # "file:///tmp/ecoscope-workflows/release/artifacts/",
-    # "file:///tmp/ecoscope-workflows-custom/release/artifacts/",
     "https://repo.prefix.dev/ecoscope-workflows/",
     "https://repo.prefix.dev/ecoscope-workflows-custom/",
     "conda-forge",
 ]
-
-# Multi-platform support - comment out platforms you don't need to speed up solves
-platforms = ["linux-64", "osx-arm64", "osx-64", "win-64"]
+platforms = ["osx-arm64"]
 
 [dependencies]
-# Build tools
-curl = "*"
-rattler-build = "*"
-yq = "*"
-hatch = "*"
-pip = "*"
-
-# Python environment
 python = ">=3.10"
 
-# Package development dependencies (py-rattler in feature.ecoscope-workflows below to avoid conflict with wt env)
-
-ecoscope = "*"
-jinja2 = "*"
+# Geospatial / scientific stack
+[feature.geospatial.dependencies]
+rasterio = "*"
 geopandas = "*"
-pandera = ">0.24.0"
-pydantic = "<2.9.0"
-pydantic-settings = "*"
-"ruamel.yaml" = "*"
-ruff = "*"
-tomli-w = "*"
-pydeck = { version = "==0.0.1", channel = "https://repo.prefix.dev/ecoscope-workflows-custom" }
+statsmodels = "*"
+pandas = "<3"
+numpy = ">=2,<2.1"
+plotly = "*"
+scikit-learn = "*"
+scikit-image = "*"
+earthengine-api = ">=1.4,<1.7.13"
+python-igraph = "*"
+astropy = "*"
+pydeck = { version = "==0.0.2", channel = "https://repo.prefix.dev/ecoscope-workflows-custom" }
+# Constrained by ecoscope-earthranger-io-core (pulled in via ecoscope[platform]),
+# which requires pyarrow >=20,<24.
+pyarrow = ">=20,<24"
 
-# Workflow-specific dependencies (from ecoscope-workflows-core)
+# Workflow compile / runtime deps
+[feature.workflow.dependencies]
+py-rattler = ">=0.15.0,<0.16"
 datamodel-code-generator = ">=0.26.3"
 cloudpathlib-gs = "*"
 lithops = { version = "==3.6.0", channel = "https://repo.prefix.dev/ecoscope-workflows" }
 obstore = ">=0.6.0,<0.7"
 pydot = ">=4.0.0"
 graphviz = "*"
-astropy = "*"
 opentelemetry-sdk = ">=1.37.0,<2"
 opentelemetry-exporter-gcp-trace = ">=1.9.0,<2"
+jinja2 = "*"
+pandera = ">=0.24.0,<0.29"
+pydantic = "<2.9.0"
+pydantic-settings = "*"
+"ruamel.yaml" = "*"
+tomli-w = "*"
+yq = "*"
+setuptools = "<81"
 
-# Testing dependencies
+# Dev tools (lint, type-check, test, browser automation)
+[feature.dev.dependencies]
+ruff = "*"
+mypy = "*"
 pytest = "*"
 pytest-asyncio = "*"
 pytest-check = "*"
-pandas = "*"
-pyarrow = "*"
-pillow = "*"
-scikit-image = "*"
 syrupy = "*"
-
-# Type checking
-mypy = "*"
+pillow = "*"
 pandas-stubs = "*"
 pandera-mypy = "*"
 
-
-# Task libraries
-ecoscope-workflows-core = ">=0.18.0,<0.19.0"
-ecoscope-workflows-ext-ecoscope = ">=0.18.0,<0.19.0"
-ecoscope-workflows-ext-custom = ">=0.0.7,<0.1.0"
-
-# Task libraries: use local build
-# <package_name> = { version = "*", channel = "<path_to_channel>"}
-# e.g. ecoscope-workflows-ext-custom = { version = "*", channel = "file:///tmp/ecoscope-workflows-custom/release/artifacts/" }
-
-
-# Ecoscope Workflows CLI
-wt = "*"
-
-[pypi-dependencies]
-# PyPI-only packages needed for custom workflows
-playwright = "*"
+[feature.dev.pypi-dependencies]
+playwright = ">=1.45.0,<1.48"
 pytest-playwright = "*"
+types-shapely = "*"
+types-click = "*"
 python-docx = "*"
-docxtpl = "==0.19.0"
+docxtpl = "*"
 docxcompose = "*"
 pandasql = "*"
 
-# Type stubs for mypy
-types-shapely = "*"
-types-click = "*"
+# Documentation site
+[feature.docs.dependencies]
+mkdocs-material = "*"
+watchdog = ">=6.0.0,<7"
+
+[feature.docs.pypi-dependencies]
+mkdocs-awesome-pages-plugin = "*"
+
+# Conda package build / publish tooling
+[feature.build.dependencies]
+curl = "*"
+rattler-build = "*"
+yq = "*"
+hatch = "*"
+hatch-vcs = "*"
 
 
-# Note: you can mark your task libraries editable here.
-# Remember to comment out duplicate dependencies above
-# ecoscope-workflows-ext-custom = { path = "<package_path>", editable = true }
-# e.g. ecoscope-workflows-ext-ecoscope = { path = "/Users/yunwu/MEP/ecoscope-workflows/src/ecoscope-workflows-ext-ecoscope", editable = true }
-
-[activation]
-# The activate.sh script runs when you activate the pixi environment, initializing dot for graphviz and playwright
-scripts = ["../dev/activate.sh"]
-
-# =============================================================================
-# wt framework environment (pixi shell -e wt)
-# =============================================================================
-
-[feature.wt.dependencies]
-python = ">=3.10"
-py-rattler = ">=0.22.0,<0.23.0"
-datamodel-code-generator = "==0.42.1"
-pydantic = ">=2.0.0,<3.0.0"
-"ruamel.yaml" = ">=0.17.0"
-jinja2 = "*"
-pydot = ">=1.4.0"
-ruff = ">=0.1.0"
-tomli-w = ">=1.0.0"
-graphviz = "*"
-obstore = ">=0.6.0"
-numpy = ">=2,<2.1"
-proj = "*"
-gdal = "*"
-cxx-compiler = "*"
-ecoscope = "*"
-pytest = "*"
-
-# wt framework packages
-wt = "*"
-wt-contracts = "*"
-wt-registry = "*"
-wt-compiler = "*"
-wt-task = "*"
-wt-invokers = "*"
-
-[feature.ecoscope-workflows.dependencies]
-py-rattler = ">=0.15.0,<0.16"
+# todo: update this section based on your local development needs. This is meant to be used for editable installs of ecoscope and related packages, so that you can make code changes locally and have them reflected in your environment without needing to reinstall.
+# [feature.editables.pypi-dependencies]
+# ecoscope = { path = "<your_path_to_ecoscope>", editable = true, extras = [
+#     "plotting",
+#     "analysis",
+#     "mapping",
+#     "platform",
+# ] }
+# ecoscope-workflows-ext-custom = { path = "<your_path_to_task_library>/src/ecoscope-workflows-ext-custom", editable = true }
+# ecoscope-workflows-ext-mt = { path = "<your_custom_task_lib>/src/ecoscope-workflows-ext-mt", editable = true }
 
 [environments]
-default = ["ecoscope-workflows"]
-wt = { features = ["wt"], no-default-feature = true }
+default = { features = ["geospatial", "workflow", "dev", "editables"] }
+docs = { features = ["geospatial", "workflow", "editables", "docs"] }
+build = { features = ["build"], no-default-feature = true }
