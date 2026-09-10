@@ -92,7 +92,7 @@
   <div class="count" id="wf-count"></div>
   <div class="tablewrap"><table id="wf-table"><thead><tr>
     <th data-key="priority">Priority</th><th data-key="name">Workflow</th><th data-key="project">Project</th>
-    <th data-key="status">Status</th><th data-key="epic">Epic</th><th data-key="desktop">Desktop</th><th data-key="web">Web</th>
+    <th data-key="status">Status</th><th data-key="desktop">Desktop</th><th data-key="web">Web</th>
     <th data-key="outputs">Outputs</th><th data-key="ci">CI</th><th data-key="open">Open work</th>
   </tr></thead><tbody></tbody></table></div>
 </section>
@@ -186,7 +186,6 @@
       case 'name': return [w.name.toLowerCase()];
       case 'project': return [projectOf(w).toLowerCase()];
       case 'status': return [rank(STATUS_ORDER, w.epic?.status), w.name.toLowerCase()];
-      case 'epic': return [w.epic?.state || 'zz'];
       case 'desktop': return [w.desktop_version || 'zz'];
       case 'web': return [w.web_version || 'zz'];
       case 'outputs': return [w.outputs.map(o => o.type).join(',')];
@@ -220,7 +219,7 @@
     const rows = filteredWorkflows();
     $('#wf-count').textContent = `${rows.length} of ${state.workflows.length} workflows`;
     const tbody = $('#wf-table tbody');
-    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="10" class="empty">No workflows match.</td></tr>'; return; }
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="9" class="empty">No workflows match.</td></tr>'; return; }
     tbody.innerHTML = rows.map(w => {
       const e = w.epic;
       return `<tr class="row" data-id="${esc(w.id)}">
@@ -228,7 +227,6 @@
         <td><strong>${esc(w.name)}</strong> <span class="muted">${esc(w.id !== w.name ? w.id : '')}</span>${badges(w)}</td>
         <td>${chip(projectOf(w)) || '<span class="muted">—</span>'}</td>
         <td>${chip(e?.status, statusClass(e?.status)) || '<span class="muted">—</span>'}</td>
-        <td>${e ? link(e.url, '#' + e.url.split('/').pop()) + (e.state === 'CLOSED' ? ' <span class="muted">closed</span>' : '') : '<span class="muted">—</span>'}</td>
         <td>${w.desktop_version ? chip('v' + w.desktop_version, 'ok') : '<span class="muted">—</span>'}</td>
         <td>${w.web_version ? chip('v' + w.web_version, 'ok') : '<span class="muted">—</span>'}</td>
         <td>${w.outputs.map(o => chipTitled(o.name, o.type)).join('') || '<span class="muted">—</span>'}</td>
@@ -375,7 +373,7 @@
     .catch(err => {
       $('#generated').textContent = 'failed to load data.json: ' + err.message;
       $('#generated').classList.add('stale');
-      $('#wf-table tbody').innerHTML = '<tr><td colspan="10" class="empty">Could not load the snapshot. Check the latest monitor run in Actions.</td></tr>';
+      $('#wf-table tbody').innerHTML = '<tr><td colspan="9" class="empty">Could not load the snapshot. Check the latest monitor run in Actions.</td></tr>';
       $('#out-table tbody').innerHTML = '<tr><td colspan="5" class="empty">Could not load the snapshot.</td></tr>';
       $('#wf-count').textContent = '';
       $('#out-count').textContent = '';

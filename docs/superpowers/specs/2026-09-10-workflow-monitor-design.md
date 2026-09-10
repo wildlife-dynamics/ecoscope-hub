@@ -228,9 +228,10 @@ editor.
   hash.
 - Table, default sort by priority (P0 first, missing last), then status in project order,
   then name; any column sortable:
-  `Priority | Workflow | Project | Status | Epic | Desktop | Web | Outputs | CI | Open work`
-  `Epic` is a link to the epic issue; `Open work` is open sub-issues + repo open issues; the
-  `Outputs` cell lists each output's name as a chip, in declared order (title = type).
+  `Priority | Workflow | Project | Status | Desktop | Web | Outputs | CI | Open work`
+  `Open work` is open sub-issues + repo open issues; the `Outputs` cell lists each output's
+  name as a chip, in declared order (title = type). The epic link itself moved into the
+  drill-down modal.
 - Badges in the Workflow cell for `metadata_missing`, `spec_missing`, `archived`, no epic,
   `unknown_indicators`, and `errors`. Status, priority, and CI colour-coded.
 - Row click opens a modal (open id in the URL hash): epic link with its state, size, and
