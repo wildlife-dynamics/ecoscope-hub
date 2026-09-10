@@ -110,7 +110,7 @@ def collect_workflow(entry, client, catalog, vocab):
         try:
             record["epic"], epic_errors = fetch_epic(client, entry["epic"])
             errors.extend(epic_errors)
-        except GitHubError as e:
+        except Exception as e:  # noqa: BLE001 - keep other fields even if the epic lookup breaks
             errors.append(f"epic: {e}")
 
     repo = entry.get("repo")
@@ -122,7 +122,7 @@ def collect_workflow(entry, client, catalog, vocab):
     except NotFound:
         errors.append(f"repo not found: {repo}")
         return record
-    except GitHubError as e:
+    except Exception as e:  # noqa: BLE001
         errors.append(f"repo: {e}")
         return record
     record["visibility"] = "private" if info.get("private") else "public"
@@ -136,7 +136,7 @@ def collect_workflow(entry, client, catalog, vocab):
         meta = spec.get("metadata") if isinstance(spec, dict) else None
     except NotFound:
         pass
-    except (GitHubError, yaml.YAMLError) as e:
+    except Exception as e:  # noqa: BLE001
         errors.append(f"spec.yaml: {e}")
     if isinstance(meta, dict):
         record["metadata_missing"] = False
@@ -149,23 +149,23 @@ def collect_workflow(entry, client, catalog, vocab):
         version_path = catalog.get(repo.lower())
         try:
             if version_path:
-                record["desktop_version"] = _read_version(client, repo, "main", version_path)
+                record["desktop_version"] = _read_version(client, repo, branch, version_path)
             if _branch_exists(client, repo, WEB_BRANCH):
                 path = version_path or find_version_path(client, repo, WEB_BRANCH)
                 if path:
                     record["web_version"] = _read_version(client, repo, WEB_BRANCH, path)
-        except GitHubError as e:
+        except Exception as e:  # noqa: BLE001
             errors.append(f"version: {e}")
 
     try:
         record["ci_status"], record["ci_url"] = _ci(client, repo, branch)
-    except GitHubError as e:
+    except Exception as e:  # noqa: BLE001
         errors.append(f"ci: {e}")
 
     try:
         record["issues"] = _issues(client, repo)
         record["open_issue_count"] = len(record["issues"])
-    except GitHubError as e:
+    except Exception as e:  # noqa: BLE001
         errors.append(f"issues: {e}")
 
     return record
@@ -199,7 +199,8 @@ def main(argv=None):
     try:
         entries = load_registry(args.registry)
         vocab = load_indicators(args.indicators)
-    except (RegistryError, OSError, yaml.YAMLError) as e:
+        unregistered = json.loads(Path(args.unregistered).read_text()) if args.unregistered else []
+    except (RegistryError, OSError, yaml.YAMLError, json.JSONDecodeError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
     if args.only:
@@ -211,7 +212,6 @@ def main(argv=None):
     except Exception as e:  # noqa: BLE001
         print(f"warning: catalog unavailable ({e}); desktop versions will be empty", file=sys.stderr)
         catalog = {}
-    unregistered = json.loads(Path(args.unregistered).read_text()) if args.unregistered else []
 
     snapshot = build(entries, client, catalog, vocab, unregistered)
     out = Path(args.out)

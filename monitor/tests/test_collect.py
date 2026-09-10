@@ -224,6 +224,35 @@ def test_collect_workflow_entry_without_repo(client, session):
     assert record["errors"] == []
 
 
+def test_collect_workflow_issues_bad_label_is_isolated(client, session):
+    add_epic(session)
+    add_repo(session)
+    add_spec(session)
+    add_ci(session)
+    session.add(
+        "GET",
+        f"{API}/repos/o/r/issues",
+        FakeResponse(
+            200,
+            [{"number": 7, "title": "Bad", "html_url": "u7", "labels": ["bug"], "created_at": "2026-01-03T00:00:00Z", "assignee": None}],
+        ),
+    )
+    record = collect_workflow(full_entry(), client, {}, VOCAB)
+    assert record["issues"] == []
+    assert record["open_issue_count"] == 0
+    assert record["name"] == "NDVI Workflow"
+    assert any(e.startswith("issues:") for e in record["errors"])
+
+
+def test_build_records_unexpected_exception(client, session, monkeypatch):
+    import collect as mod
+
+    monkeypatch.setattr(mod, "collect_workflow", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("boom")))
+    snapshot = build([full_entry()], client, {}, VOCAB, [])
+    assert [w["id"] for w in snapshot["workflows"]] == ["r"]
+    assert snapshot["workflows"][0]["errors"] == ["unexpected: RuntimeError('boom')"]
+
+
 def test_build_isolates_failures_and_stamps_time(client, session):
     add_epic(session)
     add_repo(session)
