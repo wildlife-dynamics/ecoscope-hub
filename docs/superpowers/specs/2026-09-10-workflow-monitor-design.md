@@ -222,8 +222,10 @@ Actions page (rebuild), to the Wildlife Dynamics project, and to `registry.yaml`
 editor.
 
 **Summary**: a two-row figures area above the tabs, computed over the whole fleet regardless
-of active filters. Row one is four stat tiles — workflows available, unique output names, on
-Desktop, on Web. Row two holds two charts: a workflows-by-Project donut (legend, per-slice
+of active filters, laid out as a 6-column grid. Row one is six equal-width stat tiles: total
+workflow templates, unique output names, on Desktop, on Web, and In progress / In review (the
+last two count epics by board Status). Row two holds two charts, each spanning three columns
+so the row totals the same width as row one: a workflows-by-Project donut (legend, per-slice
 tooltips, smallest slices folded into "Other" past 7 distinct projects) and a workflows-by-
 priority bar chart (`P0`..`P3` plus "No priority", bars coloured to match the table's priority
 chips).
