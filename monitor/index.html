@@ -8,10 +8,14 @@
   :root {
     --bg: #fafaf9; --fg: #1c1917; --muted: #78716c; --line: #e7e5e4; --card: #ffffff; --accent: #0f766e;
     --ok: #15803d; --warn: #b45309; --bad: #b91c1c; --info: #1d4ed8; --chip: #f5f5f4;
+    --series-1: #2a78d6; --series-2: #eb6834; --series-3: #1baf7a;
+    --series-4: #eda100; --series-5: #e87ba4; --series-6: #008300;
   }
   @media (prefers-color-scheme: dark) {
     :root { --bg: #0c0a09; --fg: #e7e5e4; --muted: #a8a29e; --line: #292524; --card: #1c1917; --accent: #2dd4bf;
-            --ok: #4ade80; --warn: #fbbf24; --bad: #f87171; --info: #93c5fd; --chip: #292524; }
+            --ok: #4ade80; --warn: #fbbf24; --bad: #f87171; --info: #93c5fd; --chip: #292524;
+            --series-1: #3987e5; --series-2: #d95926; --series-3: #199e70;
+            --series-4: #c98500; --series-5: #d55181; --series-6: #008300; }
   }
   * { box-sizing: border-box; }
   body { margin: 0; padding-block: 16px; padding-inline: 16px; background: var(--bg); color: var(--fg);
@@ -47,6 +51,19 @@
   details.unreg { margin-top: 16px; }
   details.unreg summary { cursor: pointer; color: var(--muted); }
   .count { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+  .stats { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+  .stat-tile, .stat-chart { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; }
+  .stat-tile { min-width: 140px; }
+  .stat-value { font-size: 28px; font-weight: 700; line-height: 1; font-variant-numeric: normal; }
+  .stat-label { color: var(--muted); font-size: 12px; margin-top: 4px; text-transform: uppercase; letter-spacing: .03em; }
+  .stat-chart { display: flex; align-items: center; gap: 16px; flex: 1 1 280px; min-width: 260px; }
+  .stat-chart h3 { margin: 0 0 2px; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); font-weight: 600; }
+  .donut { flex: 0 0 auto; width: 92px; height: 92px; }
+  .donut-col { flex: 1 1 auto; min-width: 0; }
+  .donut-legend { list-style: none; margin: 4px 0 0; padding: 0; font-size: 12px; }
+  .donut-legend li { display: flex; align-items: center; gap: 6px; margin: 3px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .donut-legend .swatch { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 auto; }
+  .donut-legend .count { color: var(--muted); margin-left: auto; padding-left: 8px; }
   #modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); align-items: center; justify-content: center; padding: 16px; z-index: 100; }
   #modal:not([hidden]) { display: flex; }
   .modal-card { background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 10px;
@@ -69,6 +86,20 @@
     <a href="https://github.com/wildlife-dynamics/ecoscope-hub/actions/workflows/monitor.yml" target="_blank" rel="noopener">Rebuild</a>
   </span>
 </header>
+
+<div class="stats" id="stats">
+  <div class="stat-tile"><div class="stat-value" id="stat-workflows">—</div><div class="stat-label">Workflows available</div></div>
+  <div class="stat-tile"><div class="stat-value" id="stat-outputs">—</div><div class="stat-label">Unique outputs</div></div>
+  <div class="stat-tile"><div class="stat-value" id="stat-desktop">—</div><div class="stat-label">On Desktop</div></div>
+  <div class="stat-tile"><div class="stat-value" id="stat-web">—</div><div class="stat-label">On Web</div></div>
+  <div class="stat-chart">
+    <svg class="donut" id="org-donut" viewBox="0 0 100 100" role="img" aria-label="Workflows by project"></svg>
+    <div class="donut-col">
+      <h3>Workflows by project</h3>
+      <ul class="donut-legend" id="org-legend"></ul>
+    </div>
+  </div>
+</div>
 
 <nav class="tabs">
   <button data-tab="workflows" class="active">Workflows</button>
@@ -102,7 +133,6 @@
     <input id="out-q" type="search" placeholder="Search output name or description…">
     <select id="out-indicator"><option value="">All indicators</option></select>
     <select id="out-otype"><option value="">All types</option></select>
-    <select id="out-project"><option value="">All projects</option></select>
   </div>
   <div class="count" id="out-count"></div>
   <div class="tablewrap"><table id="out-table"><thead><tr>
@@ -147,7 +177,6 @@
       q: $('#wf-q').value, project: $('#wf-project').value, status: $('#wf-status').value,
       priority: $('#wf-priority').value, otype: $('#wf-otype').value, avail: $('#wf-avail').value,
       oq: $('#out-q').value, oind: $('#out-indicator').value, ootype: $('#out-otype').value,
-      oproject: $('#out-project').value,
       open: state.open || '',
     };
   }
@@ -276,7 +305,6 @@
       if (q && !(o.name + ' ' + o.description).toLowerCase().includes(q)) return false;
       if (f.oind && !o.indicators.includes(f.oind)) return false;
       if (f.ootype && o.type !== f.ootype) return false;
-      if (f.oproject && projectOf(w) !== f.oproject) return false;
       return true;
     });
     $('#out-count').textContent = `${rows.length} of ${all.length} outputs`;
@@ -286,6 +314,43 @@
       <td><a href="#" data-open="${esc(w.id)}">${esc(w.name)}</a></td><td>${esc(o.name)}</td><td>${chip(o.type)}</td>
       <td>${esc(o.description)}</td><td>${o.indicators.map(i => chip(i, 'info')).join('')}</td>
     </tr>`).join('');
+  }
+
+  const SERIES = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)', 'var(--series-4)', 'var(--series-5)', 'var(--series-6)'];
+  const OTHER_COLOR = 'var(--muted)';
+
+  function renderStats() {
+    $('#stat-workflows').textContent = state.workflows.length;
+    $('#stat-outputs').textContent = uniq(state.workflows.flatMap(w => w.outputs.map(o => o.name))).length;
+    $('#stat-desktop').textContent = state.workflows.filter(w => w.desktop_version).length;
+    $('#stat-web').textContent = state.workflows.filter(w => w.web_version).length;
+
+    const counts = new Map();
+    for (const w of state.workflows) {
+      const name = projectOf(w) || 'No project';
+      counts.set(name, (counts.get(name) || 0) + 1);
+    }
+    let entries = [...counts.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+    if (entries.length > SERIES.length + 1) {
+      const head = entries.slice(0, SERIES.length);
+      const otherCount = entries.slice(SERIES.length).reduce((s, e) => s + e.count, 0);
+      entries = [...head, { name: 'Other', count: otherCount }];
+    }
+    const colors = entries.map((e, i) => e.name === 'Other' ? OTHER_COLOR : SERIES[i]);
+    const total = entries.reduce((s, e) => s + e.count, 0) || 1;
+    const r = 40, cx = 50, cy = 50, sw = 16, circumference = 2 * Math.PI * r;
+    let offset = 0;
+    const arcs = entries.map((e, i) => {
+      const frac = e.count / total;
+      const dash = frac * circumference;
+      const el = `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${colors[i]}" stroke-width="${sw}"
+        stroke-dasharray="${dash} ${circumference - dash}" stroke-dashoffset="${-offset}"
+        transform="rotate(-90 ${cx} ${cy})"><title>${esc(e.name)}: ${e.count} (${Math.round(frac * 100)}%)</title></circle>`;
+      offset += dash;
+      return el;
+    }).join('');
+    $('#org-donut').innerHTML = arcs;
+    $('#org-legend').innerHTML = entries.map((e, i) => `<li><span class="swatch" style="background:${colors[i]}"></span><span>${esc(e.name)}</span><span class="count">${e.count}</span></li>`).join('') || '<li class="muted">No data.</li>';
   }
 
   function renderUnregistered() {
@@ -332,7 +397,7 @@
     }
 
     const projects = uniq(state.workflows.map(projectOf)).sort();
-    fillSelect($('#wf-project'), projects); fillSelect($('#out-project'), projects);
+    fillSelect($('#wf-project'), projects);
     fillSelect($('#wf-status'), uniq(state.workflows.map(w => w.epic?.status)).sort((a, b) => rank(STATUS_ORDER, a) - rank(STATUS_ORDER, b)));
     fillSelect($('#wf-priority'), uniq(state.workflows.map(w => w.epic?.priority)).sort());
     fillSelect($('#wf-otype'), uniq(state.workflows.flatMap(w => w.outputs.map(o => o.type))).sort());
@@ -341,7 +406,7 @@
 
     const h = readHash();
     const map = { q: '#wf-q', project: '#wf-project', status: '#wf-status', priority: '#wf-priority', otype: '#wf-otype', avail: '#wf-avail',
-                  oq: '#out-q', oind: '#out-indicator', ootype: '#out-otype', oproject: '#out-project' };
+                  oq: '#out-q', oind: '#out-indicator', ootype: '#out-otype' };
     for (const [k, sel] of Object.entries(map)) if (h[k] != null) $(sel).value = h[k];
     state.open = h.open || null;
     showTab(h.tab === 'outputs' ? 'outputs' : 'workflows');
@@ -363,6 +428,7 @@
     $('#modal').addEventListener('click', ev => { if (ev.target.id === 'modal') closeModal(); });
     $('#modal-close').addEventListener('click', closeModal);
     document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && state.open) closeModal(); });
+    renderStats();
     renderUnregistered();
     renderAll();
   }
