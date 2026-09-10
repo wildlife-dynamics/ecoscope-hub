@@ -28,6 +28,19 @@ def fetch_catalog(session):
     return catalog
 
 
+def resolve_catalog(client, catalog):
+    resolved = {}
+    for key, path in catalog.items():
+        try:
+            info = client.get(f"/repos/{key}")
+            resolved[info["full_name"].lower()] = path
+        except NotFound:
+            resolved[key] = path
+        except GitHubError:
+            resolved[key] = path
+    return resolved
+
+
 def find_version_path(client, repo, ref):
     tree = client.get(f"/repos/{repo}/git/trees/{ref}", params={"recursive": "1"})
     for node in tree.get("tree", []):
@@ -127,6 +140,7 @@ def collect_workflow(entry, client, catalog, vocab):
     if info.get("private"):
         print(f"warning: {entry['id']}: repo {repo} is private, excluded", file=sys.stderr)
         return None
+    record["repo"] = info.get("full_name") or repo
     record["archived"] = bool(info.get("archived"))
     branch = info.get("default_branch") or "main"
 
@@ -146,7 +160,8 @@ def collect_workflow(entry, client, catalog, vocab):
         record["maintainers"] = [m for m in meta.get("maintainers") or [] if isinstance(m, dict)]
         record["outputs"], record["indicators"], record["unknown_indicators"] = normalize_outputs(meta, record["name"], vocab)
 
-    version_path = catalog.get(repo.lower())
+    canonical = (info.get("full_name") or repo).lower()
+    version_path = catalog.get(canonical)
     try:
         if version_path:
             record["desktop_version"] = _read_version(client, repo, branch, version_path)
@@ -219,6 +234,7 @@ def main(argv=None):
     warnings = []
     try:
         catalog = fetch_catalog(client.session)
+        catalog = resolve_catalog(client, catalog)
     except Exception as e:  # noqa: BLE001
         print(f"warning: catalog unavailable ({e}); desktop versions will be empty", file=sys.stderr)
         catalog = {}

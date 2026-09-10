@@ -25,7 +25,7 @@ in-page editing) reuses the collector and page unchanged; it is out of scope her
 | Lifecycle status, priority, size, the board's `Project` text field, tracked sub-issues | GitHub Projects | the epic issue's project items (Wildlife Dynamics project #9 first) and sub-issues, via GraphQL |
 | Name, description, maintainers, outputs → components → indicators | each workflow repo | `metadata:` block in `spec.yaml` on the default branch |
 | Canonical indicator vocabulary | ecoscope-hub | `monitor/indicators.yaml` |
-| Desktop availability + version | derived | repo is public **and** listed in the Desktop catalog JSON; version from `VERSION.yaml` on `main` |
+| Desktop availability + version | derived | repo is public **and** listed in the Desktop catalog JSON (catalog URLs are resolved to each repo's canonical name so renames still match); version from `VERSION.yaml` on `main` |
 | Web availability + version | derived | repo is public **and** has an `ecoscope-web` branch; version from `VERSION.yaml` on that branch |
 | Repo visibility (private repos are excluded), CI status, repo open issues | derived | GitHub API on every build |
 

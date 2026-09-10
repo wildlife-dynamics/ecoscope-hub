@@ -1,7 +1,7 @@
 import json
 
 from conftest import FakeResponse
-from collect import CATALOG_URL, build, collect_workflow, fetch_catalog, find_version_path, main
+from collect import CATALOG_URL, build, collect_workflow, fetch_catalog, find_version_path, main, resolve_catalog
 from gh import API
 
 SPEC = """
@@ -88,6 +88,16 @@ def test_fetch_catalog_maps_repo_to_version_path(session):
     assert fetch_catalog(session) == {"wildlife-dynamics/wt-ndvi": "x-workflow/VERSION.yaml"}
 
 
+def test_resolve_catalog_follows_renames(client, session):
+    session.add("GET", f"{API}/repos/o/old", FakeResponse(200, {"full_name": "o/new"}))
+    assert resolve_catalog(client, {"o/old": "p/VERSION.yaml"}) == {"o/new": "p/VERSION.yaml"}
+
+
+def test_resolve_catalog_keeps_unknown_repo(client, session):
+    session.add("GET", f"{API}/repos/o/gone", FakeResponse(404, {"message": "Not Found"}))
+    assert resolve_catalog(client, {"o/gone": "p/VERSION.yaml"}) == {"o/gone": "p/VERSION.yaml"}
+
+
 def test_find_version_path_picks_workflow_dir(client, session):
     add_tree(session, paths=("README.md", "pkg-workflow/VERSION.yaml", "other/VERSION.yaml"))
     assert find_version_path(client, "o/r", "main") == "pkg-workflow/VERSION.yaml"
@@ -121,6 +131,19 @@ def test_collect_workflow_public_repo_full_record(client, session):
     assert record["open_issue_count"] == 1
     assert record["issues"] == [{"number": 6, "title": "Bug", "url": "u6", "labels": ["bug"], "created_at": "2026-01-02T00:00:00Z", "assignee": "yun"}]
     assert record["metadata_missing"] is False and record["spec_missing"] is False
+
+
+def test_collect_workflow_resolves_renamed_repo_alias(client, session):
+    add_epic(session)
+    session.add("GET", f"{API}/repos/o/alias", FakeResponse(200, {"full_name": "o/r", "private": False, "archived": False, "default_branch": "main", "html_url": "https://github.com/o/r"}))
+    add_spec(session, repo="o/alias")
+    add_version(session, "o/alias", "main")
+    add_ci(session, repo="o/alias")
+    add_issues(session, repo="o/alias")
+    entry = {"id": "r", "repo": "o/alias", "epic": "https://github.com/o/r/issues/1"}
+    record = collect_workflow(entry, client, {"o/r": "pkg-workflow/VERSION.yaml"}, VOCAB)
+    assert record["repo"] == "o/r"
+    assert record["desktop_version"] == "1.2.3"
 
 
 def test_collect_workflow_private_repo_is_excluded(client, session):
