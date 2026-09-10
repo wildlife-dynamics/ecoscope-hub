@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ecoscope Workflow Monitor</title>
+<style>
+  :root {
+    --bg: #fafaf9; --fg: #1c1917; --muted: #78716c; --line: #e7e5e4; --card: #ffffff; --accent: #0f766e;
+    --ok: #15803d; --warn: #b45309; --bad: #b91c1c; --info: #1d4ed8; --chip: #f5f5f4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0c0a09; --fg: #e7e5e4; --muted: #a8a29e; --line: #292524; --card: #1c1917; --accent: #2dd4bf;
+            --ok: #4ade80; --warn: #fbbf24; --bad: #f87171; --info: #93c5fd; --chip: #292524; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding-block: 16px; padding-inline: 16px; background: var(--bg); color: var(--fg);
+         font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  a { color: var(--accent); }
+  header { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: baseline; margin-bottom: 12px; }
+  header h1 { font-size: 20px; margin: 0; }
+  header .meta { color: var(--muted); }
+  header .meta.stale { color: var(--warn); }
+  nav.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 8px 0 12px; }
+  nav.tabs button { background: none; border: 0; border-bottom: 2px solid transparent; color: var(--muted); padding: 8px 12px; cursor: pointer; font: inherit; }
+  nav.tabs button.active { color: var(--fg); border-bottom-color: var(--accent); }
+  .filters { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+  .filters input, .filters select { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; background: var(--card); color: var(--fg); }
+  .filters input { flex: 1 1 200px; min-width: 0; }
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
+  table { border-collapse: collapse; width: 100%; min-width: 900px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+  th.sorted::after { content: " ▲"; } th.sorted.desc::after { content: " ▼"; }
+  tr.row { cursor: pointer; } tr.row:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+  tr.detail td { background: color-mix(in srgb, var(--chip) 60%, transparent); cursor: default; }
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 999px; background: var(--chip); font-size: 12px; margin: 1px 2px 1px 0; white-space: nowrap; }
+  .chip.ok { color: var(--ok); } .chip.warn { color: var(--warn); } .chip.bad { color: var(--bad); } .chip.info { color: var(--info); }
+  .badge { font-size: 11px; color: var(--warn); margin-left: 4px; }
+  .badge.bad { color: var(--bad); }
+  .muted { color: var(--muted); }
+  .detail { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; padding: 4px 0; }
+  .detail h4 { margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
+  .detail ul { margin: 0; padding-left: 18px; }
+  .detail li { margin: 2px 0; }
+  .empty { padding: 24px; color: var(--muted); text-align: center; }
+  details.unreg { margin-top: 16px; }
+  details.unreg summary { cursor: pointer; color: var(--muted); }
+  .count { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+  @media (max-width: 640px) { header h1 { font-size: 18px; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Ecoscope Workflow Monitor</h1>
+  <span class="meta" id="generated">loading…</span>
+  <span class="meta">
+    <a href="https://github.com/orgs/wildlife-dynamics/projects/9" target="_blank" rel="noopener">Project</a> ·
+    <a href="https://github.com/wildlife-dynamics/ecoscope-hub/edit/main/monitor/registry.yaml" target="_blank" rel="noopener">Edit registry</a> ·
+    <a href="https://github.com/wildlife-dynamics/ecoscope-hub/actions/workflows/monitor.yml" target="_blank" rel="noopener">Rebuild</a>
+  </span>
+</header>
+
+<nav class="tabs">
+  <button data-tab="workflows" class="active">Workflows</button>
+  <button data-tab="outputs">Outputs</button>
+</nav>
+
+<section id="tab-workflows">
+  <div class="filters">
+    <input id="wf-q" type="search" placeholder="Search id, name, indicators…">
+    <select id="wf-project"><option value="">All projects</option></select>
+    <select id="wf-status"><option value="">All statuses</option></select>
+    <select id="wf-priority"><option value="">All priorities</option></select>
+    <select id="wf-otype"><option value="">All output types</option></select>
+    <select id="wf-avail">
+      <option value="">Any availability</option>
+      <option value="desktop">On Desktop</option>
+      <option value="web">On Web</option>
+      <option value="none">Not available</option>
+    </select>
+  </div>
+  <div class="count" id="wf-count"></div>
+  <div class="tablewrap"><table id="wf-table"><thead><tr>
+    <th data-key="priority">Priority</th><th data-key="name">Workflow</th><th data-key="projects">Projects</th>
+    <th data-key="status">Status</th><th data-key="epic">Epic</th><th data-key="desktop">Desktop</th><th data-key="web">Web</th>
+    <th data-key="outputs">Outputs</th><th data-key="indicators">Indicators</th><th data-key="ci">CI</th><th data-key="open">Open work</th>
+  </tr></thead><tbody></tbody></table></div>
+</section>
+
+<section id="tab-outputs" hidden>
+  <div class="filters">
+    <input id="out-q" type="search" placeholder="Search component name or description…">
+    <select id="out-indicator"><option value="">All indicators</option></select>
+    <select id="out-ctype"><option value="">All component types</option></select>
+    <select id="out-dtype"><option value="">All deliverable types</option></select>
+    <select id="out-project"><option value="">All projects</option></select>
+  </div>
+  <div class="count" id="out-count"></div>
+  <div class="tablewrap"><table id="out-table"><thead><tr>
+    <th>Workflow</th><th>Deliverable</th><th>Deliverable type</th><th>Component</th><th>Component type</th><th>Description</th><th>Indicators</th>
+  </tr></thead><tbody></tbody></table></div>
+</section>
+
+<details class="unreg" id="unreg"><summary>Unregistered workflow repos</summary><ul></ul></details>
+
+<script>
+(function () {
+  const DATA_URL = new URLSearchParams(location.search).get('data') || 'data.json';
+  const PRIORITY_ORDER = ['P0', 'P1', 'P2', 'P3'];
+  const STATUS_ORDER = ['In progress', 'In review', 'Ready', 'Backlog', 'Done'];
+  const $ = (s, r = document) => r.querySelector(s);
+  const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const link = (href, text) => href ? `<a href="${esc(href)}" target="_blank" rel="noopener">${esc(text)}</a>` : esc(text);
+  const chip = (text, cls = '') => text ? `<span class="chip ${cls}">${esc(text)}</span>` : '';
+  const state = { workflows: [], unregistered: [], sort: { key: 'priority', desc: false }, open: null };
+
+  function readHash() {
+    const p = new URLSearchParams(location.hash.slice(1));
+    return Object.fromEntries(p.entries());
+  }
+  function writeHash(obj) {
+    const p = new URLSearchParams();
+    for (const [k, v] of Object.entries(obj)) if (v) p.set(k, v);
+    history.replaceState(null, '', '#' + p.toString());
+  }
+  function currentFilters() {
+    return {
+      tab: $('nav.tabs button.active').dataset.tab,
+      q: $('#wf-q').value, project: $('#wf-project').value, status: $('#wf-status').value,
+      priority: $('#wf-priority').value, otype: $('#wf-otype').value, avail: $('#wf-avail').value,
+      oq: $('#out-q').value, oind: $('#out-indicator').value, octype: $('#out-ctype').value,
+      odtype: $('#out-dtype').value, oproject: $('#out-project').value,
+      open: state.open || '',
+    };
+  }
+
+  function fillSelect(sel, values) {
+    const keep = sel.value;
+    for (const v of values) { const o = document.createElement('option'); o.value = v; o.textContent = v; sel.appendChild(o); }
+    sel.value = keep;
+  }
+  function uniq(list) { return [...new Set(list.filter(Boolean))]; }
+  function projectsOf(w) { return (w.epic?.projects || []).map(p => p.title); }
+  function openWork(w) {
+    const subs = (w.epic?.sub_issues || []).filter(s => s.state === 'OPEN').length;
+    return subs + (w.open_issue_count || 0);
+  }
+  function ciClass(c) { return c === 'success' ? 'ok' : c === 'failure' ? 'bad' : c ? 'warn' : ''; }
+  function statusClass(s) { return s === 'Done' ? 'ok' : s === 'In progress' || s === 'In review' ? 'info' : s === 'Ready' ? 'warn' : ''; }
+  function priorityClass(p) { return p === 'P0' ? 'bad' : p === 'P1' ? 'warn' : ''; }
+  function rank(list, v) { const i = list.indexOf(v); return i < 0 ? list.length : i; }
+
+  function badges(w) {
+    const out = [];
+    if (w.spec_missing) out.push('<span class="badge bad">no spec.yaml</span>');
+    else if (w.metadata_missing) out.push('<span class="badge">no metadata</span>');
+    if (!w.epic) out.push('<span class="badge">no epic</span>');
+    if (w.visibility === 'private') out.push('<span class="badge">private</span>');
+    if (w.archived) out.push('<span class="badge">archived</span>');
+    if (w.unknown_indicators?.length) out.push(`<span class="badge" title="${esc(w.unknown_indicators.join(', '))}">unknown indicators</span>`);
+    if (w.errors?.length) out.push(`<span class="badge bad" title="${esc(w.errors.join('\n'))}">${w.errors.length} error${w.errors.length > 1 ? 's' : ''}</span>`);
+    return out.join('');
+  }
+
+  function sortKey(w, key) {
+    switch (key) {
+      case 'priority': return [rank(PRIORITY_ORDER, w.epic?.priority), rank(STATUS_ORDER, w.epic?.status), w.name.toLowerCase()];
+      case 'name': return [w.name.toLowerCase()];
+      case 'projects': return [projectsOf(w).join(',').toLowerCase()];
+      case 'status': return [rank(STATUS_ORDER, w.epic?.status), w.name.toLowerCase()];
+      case 'epic': return [w.epic?.state || 'zz'];
+      case 'desktop': return [w.desktop_version || 'zz'];
+      case 'web': return [w.web_version || 'zz'];
+      case 'outputs': return [w.outputs.map(o => o.type).join(',')];
+      case 'indicators': return [w.indicators.join(',')];
+      case 'ci': return [w.ci_status || 'zz'];
+      case 'open': return [-openWork(w)];
+      default: return [''];
+    }
+  }
+  function compare(a, b) {
+    const ka = sortKey(a, state.sort.key), kb = sortKey(b, state.sort.key);
+    for (let i = 0; i < ka.length; i++) { if (ka[i] < kb[i]) return state.sort.desc ? 1 : -1; if (ka[i] > kb[i]) return state.sort.desc ? -1 : 1; }
+    return 0;
+  }
+
+  function filteredWorkflows() {
+    const f = currentFilters(); const q = f.q.trim().toLowerCase();
+    return state.workflows.filter(w => {
+      if (q && !(w.id + ' ' + w.name + ' ' + w.indicators.join(' ')).toLowerCase().includes(q)) return false;
+      if (f.project && !projectsOf(w).includes(f.project)) return false;
+      if (f.status && (w.epic?.status || '') !== f.status) return false;
+      if (f.priority && (w.epic?.priority || '') !== f.priority) return false;
+      if (f.otype && !w.outputs.some(o => o.type === f.otype)) return false;
+      if (f.avail === 'desktop' && !w.desktop_version) return false;
+      if (f.avail === 'web' && !w.web_version) return false;
+      if (f.avail === 'none' && (w.desktop_version || w.web_version)) return false;
+      return true;
+    }).sort(compare);
+  }
+
+  function renderWorkflows() {
+    const rows = filteredWorkflows();
+    $('#wf-count').textContent = `${rows.length} of ${state.workflows.length} workflows`;
+    const tbody = $('#wf-table tbody');
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="11" class="empty">No workflows match.</td></tr>'; return; }
+    tbody.innerHTML = rows.map(w => {
+      const e = w.epic;
+      const row = `<tr class="row" data-id="${esc(w.id)}">
+        <td>${chip(e?.priority, priorityClass(e?.priority)) || '<span class="muted">—</span>'}</td>
+        <td><strong>${esc(w.name)}</strong> <span class="muted">${esc(w.id !== w.name ? w.id : '')}</span>${badges(w)}</td>
+        <td>${projectsOf(w).map(p => chip(p)).join('') || '<span class="muted">—</span>'}</td>
+        <td>${chip(e?.status, statusClass(e?.status)) || '<span class="muted">—</span>'}</td>
+        <td>${e ? link(e.url, '#' + e.url.split('/').pop()) + (e.state === 'CLOSED' ? ' <span class="muted">closed</span>' : '') : '<span class="muted">—</span>'}</td>
+        <td>${w.desktop_version ? chip('v' + w.desktop_version, 'ok') : '<span class="muted">—</span>'}</td>
+        <td>${w.web_version ? chip('v' + w.web_version, 'ok') : '<span class="muted">—</span>'}</td>
+        <td>${uniq(w.outputs.map(o => o.type)).map(t => chip(t)).join('') || '<span class="muted">—</span>'}</td>
+        <td>${w.indicators.map(i => chip(i, 'info')).join('') || '<span class="muted">—</span>'}</td>
+        <td>${w.ci_status ? link(w.ci_url, w.ci_status).replace('<a ', `<a class="chip ${ciClass(w.ci_status)}" `) : '<span class="muted">—</span>'}</td>
+        <td>${openWork(w)}</td>
+      </tr>`;
+      return row + (state.open === w.id ? `<tr class="detail"><td colspan="11">${renderDetail(w)}</td></tr>` : '');
+    }).join('');
+    for (const th of document.querySelectorAll('#wf-table th')) {
+      th.classList.toggle('sorted', th.dataset.key === state.sort.key);
+      th.classList.toggle('desc', th.dataset.key === state.sort.key && state.sort.desc);
+    }
+  }
+
+  function age(iso) { const d = (Date.now() - Date.parse(iso)) / 864e5; return d < 1 ? 'today' : `${Math.floor(d)}d`; }
+  function renderDetail(w) {
+    const e = w.epic;
+    const subs = (e?.sub_issues || []).slice().sort((a, b) => (a.state === b.state ? 0 : a.state === 'OPEN' ? -1 : 1));
+    const epicBlock = e ? `<p>${link(e.url, e.title)} <span class="muted">· ${esc(e.state.toLowerCase())} · ${esc(e.type || 'untyped')}${e.size ? ' · size ' + esc(e.size) : ''} · ${e.sub_issues_completed}/${e.sub_issues_total} sub-issues done</span></p>` : '<p class="muted">No epic linked.</p>';
+    const repoLink = w.repo ? link('https://github.com/' + w.repo, w.repo) : '<span class="muted">no repo</span>';
+    const maint = w.maintainers.map(m => `${esc(m.name || m.email || '?')}${m.role ? ' <span class="muted">(' + esc(m.role) + ')</span>' : ''}`).join(', ');
+    const outputs = w.outputs.map(o => `<li><strong>${esc(o.name)}</strong> ${chip(o.type)}${o.description ? ' <span class="muted">' + esc(o.description) + '</span>' : ''}
+      ${o.components.length ? '<ul>' + o.components.map(c => `<li>${esc(c.name)} ${chip(c.type)} ${c.indicators.map(i => chip(i, 'info')).join('')}${c.description ? ' <span class="muted">' + esc(c.description) + '</span>' : ''}</li>`).join('') + '</ul>' : ''}</li>`).join('');
+    const tracked = subs.map(s => `<li>${link(s.url, s.title)} <span class="muted">· ${esc(s.repo)} · ${esc(s.type || '')} · ${esc(s.state.toLowerCase())}</span></li>`).join('');
+    const issues = w.issues.map(i => `<li>${link(i.url, '#' + i.number + ' ' + i.title)} ${i.labels.map(l => chip(l)).join('')} <span class="muted">· ${age(i.created_at)}${i.assignee ? ' · ' + esc(i.assignee) : ''}</span></li>`).join('');
+    const errors = w.errors.length ? `<div><h4>Errors</h4><ul>${w.errors.map(x => `<li class="badge bad">${esc(x)}</li>`).join('')}</ul></div>` : '';
+    return `<div class="detail">
+      <div><h4>Epic</h4>${epicBlock}<h4>Repo</h4><p>${repoLink}${w.ci_url ? ' · ' + link(w.ci_url, 'last CI run') : ''} · <a href="https://github.com/wildlife-dynamics/ecoscope-hub/edit/main/monitor/registry.yaml" target="_blank" rel="noopener">edit in registry</a></p>
+        ${w.description ? '<h4>Description</h4><p>' + esc(w.description) + '</p>' : ''}${maint ? '<h4>Maintainers</h4><p>' + maint + '</p>' : ''}</div>
+      <div><h4>Outputs</h4>${outputs ? '<ul>' + outputs + '</ul>' : '<p class="muted">None declared.</p>'}</div>
+      <div><h4>Tracked work (${subs.filter(s => s.state === 'OPEN').length} open)</h4>${tracked ? '<ul>' + tracked + '</ul>' : '<p class="muted">No sub-issues.</p>'}
+        <h4>Repo issues (${w.issues.length})</h4>${issues ? '<ul>' + issues + '</ul>' : '<p class="muted">None open.</p>'}${errors}</div>
+    </div>`;
+  }
+
+  function componentRows() {
+    const rows = [];
+    for (const w of state.workflows) for (const o of w.outputs) for (const c of o.components)
+      rows.push({ w, o, c });
+    return rows;
+  }
+  function renderOutputs() {
+    const f = currentFilters(); const q = f.oq.trim().toLowerCase();
+    const all = componentRows();
+    const rows = all.filter(({ w, o, c }) => {
+      if (q && !(c.name + ' ' + c.description).toLowerCase().includes(q)) return false;
+      if (f.oind && !c.indicators.includes(f.oind)) return false;
+      if (f.octype && c.type !== f.octype) return false;
+      if (f.odtype && o.type !== f.odtype) return false;
+      if (f.oproject && !projectsOf(w).includes(f.oproject)) return false;
+      return true;
+    });
+    $('#out-count').textContent = `${rows.length} of ${all.length} components`;
+    const tbody = $('#out-table tbody');
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No components match.</td></tr>'; return; }
+    tbody.innerHTML = rows.map(({ w, o, c }) => `<tr>
+      <td><a href="#" data-open="${esc(w.id)}">${esc(w.name)}</a></td><td>${esc(o.name)}</td><td>${chip(o.type)}</td>
+      <td>${esc(c.name)}</td><td>${chip(c.type)}</td><td>${esc(c.description)}</td><td>${c.indicators.map(i => chip(i, 'info')).join('')}</td>
+    </tr>`).join('');
+  }
+
+  function renderUnregistered() {
+    const ul = $('#unreg ul');
+    $('#unreg summary').textContent = `Unregistered workflow repos (${state.unregistered.length})`;
+    ul.innerHTML = state.unregistered.map(u => `<li>${link('https://github.com/' + u.repo, u.repo)} <span class="muted">${esc(u.visibility)}</span></li>`).join('') || '<li class="muted">None.</li>';
+  }
+
+  function showTab(name) {
+    for (const b of document.querySelectorAll('nav.tabs button')) b.classList.toggle('active', b.dataset.tab === name);
+    $('#tab-workflows').hidden = name !== 'workflows';
+    $('#tab-outputs').hidden = name !== 'outputs';
+  }
+  function renderAll() { renderWorkflows(); renderOutputs(); writeHash(currentFilters()); }
+
+  function init(data) {
+    state.workflows = data.workflows || [];
+    state.unregistered = data.unregistered || [];
+    const ageMs = Date.now() - Date.parse(data.generated_at);
+    const gen = $('#generated');
+    gen.textContent = `generated ${Math.round(ageMs / 6e4)} min ago (${data.generated_at})`;
+    gen.classList.toggle('stale', ageMs > 12 * 36e5);
+
+    const projects = uniq(state.workflows.flatMap(projectsOf)).sort();
+    fillSelect($('#wf-project'), projects); fillSelect($('#out-project'), projects);
+    fillSelect($('#wf-status'), uniq(state.workflows.map(w => w.epic?.status)).sort((a, b) => rank(STATUS_ORDER, a) - rank(STATUS_ORDER, b)));
+    fillSelect($('#wf-priority'), uniq(state.workflows.map(w => w.epic?.priority)).sort());
+    fillSelect($('#wf-otype'), uniq(state.workflows.flatMap(w => w.outputs.map(o => o.type))).sort());
+    fillSelect($('#out-dtype'), uniq(state.workflows.flatMap(w => w.outputs.map(o => o.type))).sort());
+    fillSelect($('#out-ctype'), uniq(componentRows().map(r => r.c.type)).sort());
+    fillSelect($('#out-indicator'), uniq(state.workflows.flatMap(w => w.indicators)).sort());
+
+    const h = readHash();
+    const map = { q: '#wf-q', project: '#wf-project', status: '#wf-status', priority: '#wf-priority', otype: '#wf-otype', avail: '#wf-avail',
+                  oq: '#out-q', oind: '#out-indicator', octype: '#out-ctype', odtype: '#out-dtype', oproject: '#out-project' };
+    for (const [k, sel] of Object.entries(map)) if (h[k] != null) $(sel).value = h[k];
+    state.open = h.open || null;
+    showTab(h.tab === 'outputs' ? 'outputs' : 'workflows');
+
+    for (const sel of Object.values(map)) $(sel).addEventListener('input', renderAll);
+    for (const b of document.querySelectorAll('nav.tabs button')) b.addEventListener('click', () => { showTab(b.dataset.tab); writeHash(currentFilters()); });
+    for (const th of document.querySelectorAll('#wf-table th')) th.addEventListener('click', () => {
+      state.sort = { key: th.dataset.key, desc: state.sort.key === th.dataset.key ? !state.sort.desc : false }; renderWorkflows();
+    });
+    $('#wf-table tbody').addEventListener('click', ev => {
+      if (ev.target.closest('a')) return;
+      const tr = ev.target.closest('tr.row'); if (!tr) return;
+      state.open = state.open === tr.dataset.id ? null : tr.dataset.id; renderAll();
+    });
+    $('#out-table tbody').addEventListener('click', ev => {
+      const a = ev.target.closest('a[data-open]'); if (!a) return;
+      ev.preventDefault(); state.open = a.dataset.open; showTab('workflows'); renderAll();
+      document.querySelector(`tr.row[data-id="${CSS.escape(state.open)}"]`)?.scrollIntoView({ block: 'center' });
+    });
+    renderUnregistered();
+    renderAll();
+  }
+
+  fetch(DATA_URL, { cache: 'no-cache' })
+    .then(r => { if (!r.ok) throw new Error(r.status + ' ' + r.statusText); return r.json(); })
+    .then(init)
+    .catch(err => {
+      $('#generated').textContent = 'failed to load data.json: ' + err.message;
+      $('#generated').classList.add('stale');
+      $('#wf-table tbody').innerHTML = '<tr><td colspan="11" class="empty">Could not load the snapshot. Check the latest monitor run in Actions.</td></tr>';
+    });
+})();
+</script>
+</body>
+</html>
