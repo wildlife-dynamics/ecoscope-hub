@@ -21,21 +21,27 @@ class FakeSession:
     def __init__(self):
         self.routes = {}
         self.calls = []
+        self._index = {}
+        self._queue_len = {}
 
     def add(self, method, url, response):
-        key = (method, url)
-        if key in self.routes and len(self.routes[key]) == 1:
-            self.routes[key].pop(0)
-        self.routes.setdefault(key, []).append(response)
+        self.routes.setdefault((method, url), []).append(response)
 
     def request(self, method, url, headers=None, timeout=None, params=None, json=None):
         self.calls.append({"method": method, "url": url, "params": params, "json": json, "headers": headers})
-        queue = self.routes.get((method, url))
+        key = (method, url)
+        queue = self.routes.get(key)
         if not queue:
             return FakeResponse(404, {"message": "Not Found"})
-        item = queue.pop(0)
-        if not queue:
-            queue.append(item)
+        i = self._index.get(key, 0)
+        old_len = self._queue_len.get(key, 0)
+        if len(queue) > old_len and i == old_len - 1 and i < len(queue) - 1:
+            i = old_len
+            self._index[key] = i
+        item = queue[i]
+        if i < len(queue) - 1:
+            self._index[key] = i + 1
+        self._queue_len[key] = len(queue)
         return item(params, json) if callable(item) else item
 
 

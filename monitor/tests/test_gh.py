@@ -52,3 +52,4 @@ def test_retries_once_after_rate_limit(client, session, monkeypatch):
     session.add("GET", f"{API}/x", FakeResponse(403, {"message": "rate"}, headers={"X-RateLimit-Remaining": "0", "X-RateLimit-Reset": "0"}))
     session.add("GET", f"{API}/x", FakeResponse(200, {"ok": True}))
     assert client.get("/x") == {"ok": True}
+    assert len(session.calls) == 2
