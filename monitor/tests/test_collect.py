@@ -184,11 +184,25 @@ def test_collect_workflow_private_repo_is_excluded(client, session):
     assert not any(c["url"].endswith("/issues") for c in session.calls)
 
 
-def test_collect_workflow_not_in_catalog_and_no_web_branch(client, session):
+def test_collect_workflow_desktop_version_falls_back_to_tree_path_when_not_in_catalog(client, session):
     add_epic(session)
     add_repo(session)
     add_spec(session)
     add_tree(session)
+    add_version(session, "o/r", "main")
+    add_ci(session)
+    add_issues(session)
+    record = collect_workflow(full_entry(), client, {}, VOCAB)
+    assert record["desktop_version"] == "1.2.3"
+    assert record["web_version"] is None
+    assert record["errors"] == []
+
+
+def test_collect_workflow_no_version_anywhere_is_null_not_an_error(client, session):
+    add_epic(session)
+    add_repo(session)
+    add_spec(session)
+    add_tree(session, paths=("README.md",))
     add_ci(session)
     add_issues(session)
     record = collect_workflow(full_entry(), client, {}, VOCAB)
@@ -201,6 +215,7 @@ def test_collect_workflow_web_branch_without_catalog_uses_tree_path(client, sess
     add_epic(session)
     add_repo(session)
     add_spec(session)
+    add_tree(session, ref="main", paths=("README.md",))
     add_tree(session, ref="ecoscope-web")
     session.add("GET", f"{API}/repos/o/r/branches/ecoscope-web", FakeResponse(200, {"name": "ecoscope-web"}))
     add_version(session, "o/r", "ecoscope-web", "{MAJ: 0, MIN: 9, PATCH: 0}")
@@ -289,6 +304,27 @@ def test_collect_workflow_issues_bad_label_is_isolated(client, session):
     assert record["open_issue_count"] == 0
     assert record["name"] == "NDVI Workflow"
     assert any(e.startswith("issues:") for e in record["errors"])
+
+
+def test_collect_workflow_issues_exclude_workflow_type(client, session):
+    add_epic(session)
+    add_repo(session)
+    add_spec(session)
+    add_ci(session)
+    session.add(
+        "GET",
+        f"{API}/repos/o/r/issues",
+        FakeResponse(
+            200,
+            [
+                {"number": 22, "title": "NDVI", "html_url": "u22", "labels": [], "created_at": "2026-01-01T00:00:00Z", "assignee": None, "type": {"name": "Workflow"}},
+                {"number": 6, "title": "Bug", "html_url": "u6", "labels": [{"name": "bug"}], "created_at": "2026-01-02T00:00:00Z", "assignee": None, "type": {"name": "Bug"}},
+            ],
+        ),
+    )
+    record = collect_workflow(full_entry(), client, {}, VOCAB)
+    assert [i["number"] for i in record["issues"]] == [6]
+    assert record["open_issue_count"] == 1
 
 
 def test_build_records_unexpected_exception(client, session, monkeypatch):

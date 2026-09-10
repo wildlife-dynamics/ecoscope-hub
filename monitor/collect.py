@@ -95,7 +95,7 @@ def _issues(client, repo):
             "assignee": (i.get("assignee") or {}).get("login"),
         }
         for i in items
-        if "pull_request" not in i
+        if "pull_request" not in i and (i.get("type") or {}).get("name") != "Workflow"
     ]
 
 
@@ -183,6 +183,14 @@ def collect_workflow(entry, client, catalog, vocab):
 
     canonical = (info.get("full_name") or repo).lower()
     version_path = catalog.get(canonical)
+    try:
+        if not version_path:
+            version_path = find_version_path(client, repo, branch)
+    except NotFound:
+        version_path = None
+    except Exception as e:  # noqa: BLE001
+        errors.append(f"version: {e}")
+        version_path = None
     try:
         if version_path:
             record["desktop_version"] = _read_version(client, repo, branch, version_path)

@@ -25,7 +25,7 @@ in-page editing) reuses the collector and page unchanged; it is out of scope her
 | Lifecycle status, priority, size, the board's `Project` text field, tracked sub-issues | GitHub Projects | the epic issue's project items (Wildlife Dynamics project #9 first) and sub-issues, via GraphQL |
 | Name, description, maintainers, outputs → indicators | each workflow repo | `metadata:` block in `spec.yaml` on the default branch, falling back to `ecoscope-web` when the default branch has no `metadata:` block; `metadata_source` records which |
 | Canonical indicator vocabulary | ecoscope-hub | `monitor/indicators.yaml` |
-| Desktop availability + version | derived | repo is public **and** listed in the Desktop catalog JSON (catalog URLs are resolved to each repo's canonical name so renames still match); version from `VERSION.yaml` on `main` |
+| Desktop availability + version | derived | repo is public; version from `VERSION.yaml` on `main`, at the path from the Desktop catalog JSON when the repo is listed there (catalog URLs resolved to each repo's canonical name so renames still match), else inferred from the repo tree — catalog membership does not gate whether a version is shown |
 | Web availability + version | derived | repo is public **and** has an `ecoscope-web` branch; version from `VERSION.yaml` on that branch |
 | Repo visibility (private repos are excluded), CI status, repo open issues | derived | GitHub API on every build |
 
@@ -169,14 +169,23 @@ in order, each step recording an error string and continuing on failure:
    (`null` when neither has one).
 3. Availability:
    - Fetch the Desktop catalog JSON once per run
-     (`https://storage.googleapis.com/ecoscope-io-storage-public/ecoscope-desktop/hardcoded-template-catalog/workflow_templates.json`).
-     If an entry's `url` matches the repo, read `VERSION.yaml` at its `version_file_path` on `main`.
-   - If branch `ecoscope-web` exists, read `VERSION.yaml` at the same path on that branch. When
-     the repo is not in the catalog, the path is inferred from the generated package dir
-     (`<something>-workflow/VERSION.yaml`, discovered via the repo tree).
+     (`https://storage.googleapis.com/ecoscope-io-storage-public/ecoscope-desktop/hardcoded-template-catalog/workflow_templates.json`)
+     and resolve each entry's `url` to its repo's canonical name. If the repo matches, read
+     `VERSION.yaml` at its `version_file_path` on `main`. The catalog is a small, manually
+     curated allowlist (a handful of entries) — most repos are not on it.
+   - **`desktop_version` is not gated on catalog membership.** When the repo isn't in the
+     catalog (or the catalog is unavailable), the path is inferred instead from the generated
+     package dir (`<something>-workflow/VERSION.yaml`, discovered via the repo tree on `main`)
+     and read the same way — every public workflow with a compiled package gets a
+     `desktop_version` regardless of whether Desktop's catalog has picked it up yet. A missing
+     tree or file is not an error; only an unexpected failure while reading it is.
+   - If branch `ecoscope-web` exists, read `VERSION.yaml` at the same path (catalog or
+     inferred) on that branch; if there is no path yet, infer one from the `ecoscope-web` tree
+     directly.
 4. Latest `test.yml` run on the default branch → `conclusion`, `html_url`; null if absent.
-5. Open issues in the repo (`state=open`, excluding items with `pull_request`) → number,
-   title, url, labels, created_at, assignee login.
+5. Open issues in the repo (`state=open`, excluding items with `pull_request` and items whose
+   issue type is `Workflow` — an epic living in the same repo as its workflow otherwise shows
+   up as one of its own repo issues) → number, title, url, labels, created_at, assignee login.
 
 One HTTP helper handles the token, pagination, and a bounded retry on 403 rate-limit
 responses. ~7 calls per repo; well under the limits for a PAT.
@@ -247,9 +256,10 @@ chips).
 - Row click opens a modal (open id in the URL hash): epic link with its state, size, and
   sub-issue progress; description (with its `metadata_source` when set); maintainers; the
   output list (name, type, description, indicator chips); last CI run link; "Edit in registry"
-  link; then two issue lists, each item linking to GitHub: **Tracked work** (the epic's
-  sub-issues, open first, with repo, type, and state) and **Repo issues** (the repo's open
-  issues with number, title, labels, age, assignee).
+  link; then **Repo issues** (the repo's open issues, excluding epics, with number, title,
+  labels, age, assignee, each linking to GitHub). There is no separate "Tracked work" list of
+  the epic's sub-issues in the modal — `sub_issues_completed`/`sub_issues_total` in the Epic
+  block is the only place that data still surfaces on the page.
 
 **Outputs tab**
 - One row per output across the fleet: `Workflow | Output | Type | Description | Indicators`
@@ -269,9 +279,11 @@ link to each and to `registry.yaml`.
   epic); epic parsing (status/priority from project #9 preferred over another project,
   sub-issue pagination, non-Workflow type recorded as error, missing epic yields null); flat
   and nested-components outputs flatten identically; private repo → excluded from the snapshot even when
-  in the catalog; missing `ecoscope-web` branch → null web version; unknown indicator flagged;
-  alias mapping; 404 on one repo isolates to that record; issues exclude pull requests;
-  priority/status sort order helper.
+  in the catalog; desktop version falls back to a tree-discovered path when the repo is not in
+  the catalog, and is null (not an error) when no `VERSION.yaml` exists anywhere; missing
+  `ecoscope-web` branch → null web version; unknown indicator flagged; alias mapping; 404 on
+  one repo isolates to that record; issues exclude pull requests and the epic's own `Workflow`-
+  typed issue; priority/status sort order helper.
 - `monitor/tests/test_discover.py` — root `spec.yaml` detection; three-group diff.
 - One live smoke test, skipped without a token, running `collect.py --only ndvi` and
   asserting metadata and a desktop version are present.
