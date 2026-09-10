@@ -9,7 +9,7 @@ Design: `docs/superpowers/specs/2026-09-10-workflow-monitor-design.md`.
 ## Add or retire a workflow
 
 Edit `registry.yaml`. Each entry is `id`, `repo`, and the `epic` issue URL. Status, priority,
-size, and project membership are managed on the epic in GitHub Projects, not here. Committing
+size, and the `Project` field are managed on the epic in GitHub Projects, not here. Committing
 to `main` rebuilds the site.
 
 To find workflow repos that are not registered yet:
@@ -49,7 +49,7 @@ Two one-time commands, then a manual run:
 
 The first deploy fails until Pages is enabled.
 
-## Visibility
+## Private repos
 
 The site is public; private repos are excluded from discovery and from the snapshot
 automatically, so nothing from them is published.

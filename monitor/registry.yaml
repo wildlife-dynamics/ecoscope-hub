@@ -1,4 +1,4 @@
-# One entry per ecoscope workflow. Status, priority, and projects are managed on the epic
+# One entry per ecoscope workflow. Status, priority, and the Project field are managed on the epic
 # issue in GitHub Projects (https://github.com/orgs/wildlife-dynamics/projects/9), not here.
 workflows:
   - id: ndvi

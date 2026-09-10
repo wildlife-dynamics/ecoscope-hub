@@ -6,7 +6,7 @@ Status: approved in conversation, awaiting written review
 ## Purpose
 
 A single page where the internal team can see every ecoscope workflow the org maintains,
-which GitHub Projects it belongs to, where it is in its development lifecycle, whether and at
+which partner project it is for (the board's Project field), where it is in its development lifecycle, whether and at
 which version it is available on Ecoscope Desktop and the web platform, what it produces
 (deliverables, components, indicators), whether CI is green, and which GitHub issues are
 open. It must answer fleet-wide questions such as "which workflows calculate NDVI" and "is
@@ -22,12 +22,12 @@ in-page editing) reuses the collector and page unchanged; it is out of scope her
 | Field group | Owner | Where |
 |---|---|---|
 | Which workflows exist, and the epic issue for each | ecoscope-hub | `monitor/registry.yaml` |
-| Lifecycle status, priority, size, Project membership, tracked sub-issues | GitHub Projects | the epic issue's project items (Wildlife Dynamics project #9 first) and sub-issues, via GraphQL |
+| Lifecycle status, priority, size, the board's `Project` text field, tracked sub-issues | GitHub Projects | the epic issue's project items (Wildlife Dynamics project #9 first) and sub-issues, via GraphQL |
 | Name, description, maintainers, outputs → components → indicators | each workflow repo | `metadata:` block in `spec.yaml` on the default branch |
 | Canonical indicator vocabulary | ecoscope-hub | `monitor/indicators.yaml` |
 | Desktop availability + version | derived | repo is public **and** listed in the Desktop catalog JSON; version from `VERSION.yaml` on `main` |
 | Web availability + version | derived | repo is public **and** has an `ecoscope-web` branch; version from `VERSION.yaml` on that branch |
-| Repo visibility, CI status, repo open issues | derived | GitHub API on every build |
+| Repo visibility (private repos are excluded), CI status, repo open issues | derived | GitHub API on every build |
 
 Rule: **private repos are excluded from discovery and the snapshot**. Visibility is read from
 the API on every build.
@@ -45,7 +45,7 @@ workflows:
     epic: https://github.com/wildlife-dynamics/ndvi/issues/1   # the workflow's epic issue
 ```
 
-Nothing else is stored here. Status, priority, size, and project membership are managed on
+Nothing else is stored here. Status, priority, size, and the `Project` field are managed on
 the epic in GitHub Projects and read on every build.
 
 Validation (build fails on violation): duplicate `id`, `epic` not a GitHub issue URL, neither
