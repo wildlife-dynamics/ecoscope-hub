@@ -38,3 +38,110 @@ def load_registry(path):
             parse_epic_url(epic)
         entries.append({"id": wid, "repo": repo, "epic": epic})
     return entries
+
+
+DELIVERABLE_TYPES = {"dashboard", "report", "file"}
+COMPONENT_TYPES = {"map", "plot", "table", "text", "figure"}
+
+
+def load_indicators(path):
+    data = yaml.safe_load(Path(path).read_text()) or {}
+    vocab = {}
+    for canonical, spec in (data.get("indicators") or {}).items():
+        spec = spec or {}
+        names = [canonical, spec.get("label") or canonical, *(spec.get("aliases") or [])]
+        for name in names:
+            vocab[str(name).strip().lower()] = canonical
+    return vocab
+
+
+def _indicator_name(item):
+    if isinstance(item, dict):
+        return str(item.get("name") or "").strip()
+    return str(item or "").strip()
+
+
+def normalize_indicators(raw, vocab):
+    canonical, unknown = [], []
+    for item in raw or []:
+        name = _indicator_name(item)
+        if not name:
+            continue
+        key = name.lower()
+        if key in vocab:
+            if vocab[key] not in canonical:
+                canonical.append(vocab[key])
+        elif name not in unknown:
+            unknown.append(name)
+    return canonical, unknown
+
+
+def _component(entry, vocab):
+    indicators, unknown = normalize_indicators(entry.get("indicators"), vocab)
+    return (
+        {
+            "name": str(entry.get("name") or ""),
+            "type": str(entry.get("type") or ""),
+            "description": str(entry.get("description") or ""),
+            "indicators": indicators,
+        },
+        unknown,
+    )
+
+
+def normalize_outputs(meta, fallback_name, vocab):
+    raw = (meta or {}).get("outputs") or []
+    outputs, all_indicators, all_unknown = [], [], []
+    implicit = None
+
+    def note(indicators, unknown):
+        for i in indicators:
+            if i not in all_indicators:
+                all_indicators.append(i)
+        for u in unknown:
+            if u not in all_unknown:
+                all_unknown.append(u)
+
+    for entry in raw:
+        if not isinstance(entry, dict):
+            continue
+        etype = str(entry.get("type") or "")
+        if etype in COMPONENT_TYPES:
+            component, unknown = _component(entry, vocab)
+            note(component["indicators"], unknown)
+            if implicit is None:
+                implicit = {"name": f"{fallback_name} Dashboard", "type": "dashboard", "description": "", "components": []}
+                outputs.append(implicit)
+            implicit["components"].append(component)
+            continue
+        components = []
+        for c in entry.get("components") or []:
+            if isinstance(c, dict):
+                component, unknown = _component(c, vocab)
+                note(component["indicators"], unknown)
+                components.append(component)
+        top_indicators, unknown = normalize_indicators(entry.get("indicators"), vocab)
+        note(top_indicators, unknown)
+        output = {
+            "name": str(entry.get("name") or ""),
+            "type": etype,
+            "description": str(entry.get("description") or ""),
+            "components": components,
+        }
+        if etype == "dashboard" and implicit is None:
+            implicit = output
+        outputs.append(output)
+    return outputs, all_indicators, all_unknown
+
+
+def parse_version(text):
+    try:
+        data = yaml.safe_load(text or "")
+    except yaml.YAMLError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    try:
+        return f"{int(data['MAJ'])}.{int(data['MIN'])}.{int(data['PATCH'])}"
+    except (KeyError, TypeError, ValueError):
+        return None

@@ -1,7 +1,7 @@
 import pytest
 import yaml
 
-from metadata import RegistryError, load_registry
+from metadata import RegistryError, load_registry, load_indicators, normalize_indicators, normalize_outputs, parse_version
 
 
 def write_registry(tmp_path, workflows):
@@ -49,3 +49,103 @@ def test_load_registry_rejects_missing_id(tmp_path):
     path = write_registry(tmp_path, [{"repo": "org/a"}])
     with pytest.raises(RegistryError, match="id"):
         load_registry(path)
+
+
+@pytest.fixture
+def vocab(tmp_path):
+    path = tmp_path / "indicators.yaml"
+    path.write_text(
+        yaml.safe_dump(
+            {
+                "indicators": {
+                    "ndvi": {"label": "NDVI", "aliases": ["vegetation index"]},
+                    "patrol-distance": {"label": "Patrol distance", "aliases": ["distance patrolled"]},
+                }
+            }
+        )
+    )
+    return load_indicators(path)
+
+
+def test_load_indicators_maps_id_label_and_aliases(vocab):
+    assert vocab["ndvi"] == "ndvi"
+    assert vocab["vegetation index"] == "ndvi"
+    assert vocab["patrol distance"] == "patrol-distance"
+
+
+def test_normalize_indicators_handles_strings_dicts_case_and_unknowns(vocab):
+    canon, unknown = normalize_indicators(["NDVI", {"name": "Vegetation Index"}, "ndvi", "elephant density"], vocab)
+    assert canon == ["ndvi"]
+    assert unknown == ["elephant density"]
+
+
+def test_normalize_outputs_nested_shape(vocab):
+    meta = {
+        "outputs": [
+            {
+                "name": "NDVI Dashboard",
+                "type": "dashboard",
+                "description": "d",
+                "components": [
+                    {"name": "NDVI Map", "type": "map", "description": "m", "indicators": ["NDVI"]},
+                    {"name": "Trend", "type": "plot", "indicators": [{"name": "vegetation index"}]},
+                ],
+            }
+        ]
+    }
+    outputs, indicators, unknown = normalize_outputs(meta, "X", vocab)
+    assert outputs == [
+        {
+            "name": "NDVI Dashboard",
+            "type": "dashboard",
+            "description": "d",
+            "components": [
+                {"name": "NDVI Map", "type": "map", "description": "m", "indicators": ["ndvi"]},
+                {"name": "Trend", "type": "plot", "description": "", "indicators": ["ndvi"]},
+            ],
+        }
+    ]
+    assert indicators == ["ndvi"]
+    assert unknown == []
+
+
+def test_normalize_outputs_flat_shape_becomes_implicit_dashboard(vocab):
+    meta = {
+        "outputs": [
+            {"name": "NDVI Dashboard", "type": "dashboard", "indicators": [{"name": "NDVI"}]},
+            {"name": "NDVI Map", "type": "map", "description": "m", "indicators": [{"name": "NDVI"}]},
+            {"name": "NDVI Data", "type": "file", "indicators": [{"name": "NDVI"}]},
+        ]
+    }
+    outputs, indicators, unknown = normalize_outputs(meta, "NDVI Workflow", vocab)
+    assert [o["type"] for o in outputs] == ["dashboard", "file"]
+    dashboard = outputs[0]
+    assert dashboard["name"] == "NDVI Dashboard"
+    assert dashboard["components"] == [{"name": "NDVI Map", "type": "map", "description": "m", "indicators": ["ndvi"]}]
+    assert outputs[1]["components"] == []
+    assert indicators == ["ndvi"]
+
+
+def test_normalize_outputs_flat_without_dashboard_entry_names_it_after_workflow(vocab):
+    meta = {"outputs": [{"name": "Map", "type": "map", "indicators": ["ndvi"]}]}
+    outputs, _, _ = normalize_outputs(meta, "NDVI Workflow", vocab)
+    assert outputs[0]["name"] == "NDVI Workflow Dashboard"
+    assert outputs[0]["type"] == "dashboard"
+
+
+def test_normalize_outputs_unknown_types_are_kept_and_flagged(vocab):
+    meta = {"outputs": [{"name": "Thing", "type": "widget", "indicators": ["mystery"]}]}
+    outputs, indicators, unknown = normalize_outputs(meta, "X", vocab)
+    assert outputs[0]["type"] == "widget"
+    assert unknown == ["mystery"]
+
+
+def test_normalize_outputs_none_metadata(vocab):
+    assert normalize_outputs(None, "X", vocab) == ([], [], [])
+
+
+def test_parse_version():
+    assert parse_version("{MAJ: 1, MIN: 0, PATCH: 1}\n") == "1.0.1"
+    assert parse_version("MAJ: 2\nMIN: 3\nPATCH: 4\n") == "2.3.4"
+    assert parse_version("nonsense") is None
+    assert parse_version("") is None
