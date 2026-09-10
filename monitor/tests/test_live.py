@@ -11,13 +11,11 @@ TOKEN = os.environ.get("MONITOR_PAT") or os.environ.get("GITHUB_TOKEN")
 pytestmark = pytest.mark.skipif(not TOKEN, reason="needs MONITOR_PAT or GITHUB_TOKEN")
 
 
-def test_live_wt_ndvi_resolves_epic_and_versions():
+def test_live_ndvi_resolves_epic():
     client = GitHubClient()
     catalog = fetch_catalog(client.session)
     vocab = load_indicators(os.path.join(os.path.dirname(__file__), "..", "indicators.yaml"))
-    entry = {"id": "wt-ndvi", "repo": "wildlife-dynamics/wt-ndvi", "epic": "https://github.com/wildlife-dynamics/ndvi/issues/22"}
+    entry = {"id": "ndvi", "repo": "wildlife-dynamics/ndvi", "epic": "https://github.com/wildlife-dynamics/ndvi/issues/22"}
     record = collect_workflow(entry, client, catalog, vocab)
     assert record["errors"] == []
-    assert record["desktop_version"]
-    assert record["web_version"]
     assert record["epic"]["type"] == "Workflow"

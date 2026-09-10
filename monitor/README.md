@@ -51,8 +51,8 @@ The first deploy fails until Pages is enabled.
 
 ## Visibility
 
-The site is public. Registry entries for private repos publish their epic, sub-issue, and issue
-titles at a public URL. Omit such an entry from the registry if that is not acceptable.
+The site is public; private repos are excluded from discovery and from the snapshot
+automatically, so nothing from them is published.
 
 ## Indicators
 

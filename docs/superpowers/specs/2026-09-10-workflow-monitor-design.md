@@ -29,8 +29,8 @@ in-page editing) reuses the collector and page unchanged; it is out of scope her
 | Web availability + version | derived | repo is public **and** has an `ecoscope-web` branch; version from `VERSION.yaml` on that branch |
 | Repo visibility, CI status, repo open issues | derived | GitHub API on every build |
 
-Rule: **a private repo is never shown as available on Desktop or Web**, regardless of catalog
-or branch state. Visibility is read from the API on every build.
+Rule: **private repos are excluded from discovery and the snapshot**. Visibility is read from
+the API on every build.
 
 Nothing collected is stored in git. The snapshot lives only in the deployed Pages artifact and
 is regenerated from scratch each run. (A `monitor-data` branch for history is a possible
@@ -40,9 +40,9 @@ later addition, not built now.)
 
 ```yaml
 workflows:
-  - id: wt-ndvi                       # unique key; display name fallback when metadata is absent
-    repo: wildlife-dynamics/wt-ndvi   # optional when the workflow has no repo yet
-    epic: https://github.com/wildlife-dynamics/wt-ndvi/issues/1   # the workflow's epic issue
+  - id: ndvi                          # unique key; display name fallback when metadata is absent
+    repo: wildlife-dynamics/ndvi      # optional when the workflow has no repo yet
+    epic: https://github.com/wildlife-dynamics/ndvi/issues/1   # the workflow's epic issue
 ```
 
 Nothing else is stored here. Status, priority, size, and project membership are managed on
@@ -67,8 +67,8 @@ One GraphQL query per epic (header `GraphQL-Features: issue_types`):
   Vocabulary is whatever the Project defines today: Status `Backlog | Ready | In progress |
   In review | Done`; Priority `P0..P3`; Size `XS..XL`. The collector copies values verbatim
   and does not validate them.
-- `projects`: the list of all projects the epic belongs to. This replaces an "organization"
-  field — partner projects such as Eden or TAAF are the organization signal.
+- `project`: the board's free-text `Project` field (e.g. `WD General`, `Mara Triangle`), read
+  like status/priority/size.
 - `subIssues` (paginated): number, title, state, url, repo, issue type; plus
   `subIssuesSummary` (`total`, `completed`). Sub-issues may live in any repo.
 
@@ -122,18 +122,18 @@ get `spec_missing: true`. Both still produce a row.
 ```json
 {
   "generated_at": "2026-09-10T12:00:00Z",
-  "unregistered": [{"repo": "wildlife-dynamics/foo", "visibility": "public"}],
+  "unregistered": [{"repo": "wildlife-dynamics/foo"}],
   "workflows": [
     {
-      "id": "wt-ndvi", "repo": "wildlife-dynamics/wt-ndvi",
-      "epic": {"url": "https://github.com/wildlife-dynamics/wt-ndvi/issues/1",
+      "id": "ndvi", "repo": "wildlife-dynamics/ndvi",
+      "epic": {"url": "https://github.com/wildlife-dynamics/ndvi/issues/1",
                "title": "NDVI Workflow", "state": "OPEN", "type": "Workflow",
                "status": "In progress", "priority": "P1", "size": "M",
-               "projects": [{"number": 9, "title": "Wildlife Dynamics", "url": "..."}],
+               "project": "WD General",
                "sub_issues": [{"number": 741, "repo": "wildlife-dynamics/ecoscope",
                                "title": "...", "state": "OPEN", "type": "Bug", "url": "..."}],
                "sub_issues_total": 2, "sub_issues_completed": 0},
-      "visibility": "public", "archived": false,
+      "archived": false,
       "name": "NDVI Workflow", "description": "...", "maintainers": [],
       "outputs": [{"name": "...", "type": "dashboard", "description": "...",
                    "components": [{"name": "...", "type": "map", "description": "...",
@@ -162,8 +162,9 @@ in order, each step recording an error string and continuing on failure:
 0. Epic GraphQL query (see "Epic — what is read from it"). Missing or inaccessible epic →
    error, `epic: null`, continue with the repo steps. Entries without `repo` stop here.
 1. `GET /repos/{repo}` → visibility, archived, default branch. 404 → error, skip the rest.
+   Private repo → warn and exclude the workflow from the snapshot entirely.
 2. `spec.yaml` from the default branch → parse `metadata:`; normalise outputs and indicators.
-3. Availability (public repos only):
+3. Availability:
    - Fetch the Desktop catalog JSON once per run
      (`https://storage.googleapis.com/ecoscope-io-storage-public/ecoscope-desktop/hardcoded-template-catalog/workflow_templates.json`).
      If an entry's `url` matches the repo, read `VERSION.yaml` at its `version_file_path` on `main`.
@@ -182,7 +183,8 @@ registry or an uncaught exception.
 
 ## Discovery — `monitor/discover.py`
 
-1. List all non-archived repos in `wildlife-dynamics` (paginated).
+1. List all non-archived, public repos in `wildlife-dynamics` (paginated); private repos are
+   excluded.
 2. A repo is a workflow repo iff it has `spec.yaml` at its root.
 3. Compare with the registry and report three groups: workflow repos missing from the
    registry, registry entries whose repo is gone or archived, org repos without `spec.yaml`.
@@ -223,10 +225,10 @@ editor.
   hash.
 - Table, default sort by priority (P0 first, missing last), then status in project order,
   then name; any column sortable:
-  `Priority | Workflow | Projects | Status | Epic | Desktop | Web | Outputs | Indicators | CI | Open work`
+  `Priority | Workflow | Project | Status | Epic | Desktop | Web | Outputs | Indicators | CI | Open work`
   `Epic` is a link to the epic issue; `Open work` is open sub-issues + repo open issues.
-- Badges in the Workflow cell for `metadata_missing`, `spec_missing`, `visibility: private`,
-  `archived`, no epic, and `errors`. Status, priority, and CI colour-coded.
+- Badges in the Workflow cell for `metadata_missing`, `spec_missing`, `archived`, no epic, and
+  `errors`. Status, priority, and CI colour-coded.
 - Row click expands a drill-down (one open at a time; open id in the URL hash): epic link with
   its state, size, and sub-issue progress; description; maintainers; each deliverable with its
   components (type, description, indicators); last CI run link; "Edit in registry" link; then
@@ -251,12 +253,12 @@ link to each and to `registry.yaml`.
   keyed on URL. Cases: registry validation (duplicate id, bad epic URL, neither repo nor
   epic); epic parsing (status/priority from project #9 preferred over another project,
   sub-issue pagination, non-Workflow type recorded as error, missing epic yields null); flat
-  and nested outputs normalise identically; private repo → null availability even when in the
-  catalog; missing `ecoscope-web` branch → null web version; unknown indicator flagged;
+  and nested outputs normalise identically; private repo → excluded from the snapshot even when
+  in the catalog; missing `ecoscope-web` branch → null web version; unknown indicator flagged;
   alias mapping; 404 on one repo isolates to that record; issues exclude pull requests;
   priority/status sort order helper.
 - `monitor/tests/test_discover.py` — root `spec.yaml` detection; three-group diff.
-- One live smoke test, skipped without a token, running `collect.py --only wt-ndvi` and
+- One live smoke test, skipped without a token, running `collect.py --only ndvi` and
   asserting metadata and a desktop version are present.
 - `monitor/sample-data.json` committed for opening `index.html` locally.
 - pytest runs in `monitor.yml` before deploy.

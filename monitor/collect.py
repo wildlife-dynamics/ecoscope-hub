@@ -82,7 +82,6 @@ def _empty_record(entry):
         "id": entry["id"],
         "repo": entry.get("repo"),
         "epic": None,
-        "visibility": None,
         "archived": None,
         "name": entry["id"],
         "description": "",
@@ -125,7 +124,9 @@ def collect_workflow(entry, client, catalog, vocab):
     except Exception as e:  # noqa: BLE001
         errors.append(f"repo: {e}")
         return record
-    record["visibility"] = "private" if info.get("private") else "public"
+    if info.get("private"):
+        print(f"warning: {entry['id']}: repo {repo} is private, excluded", file=sys.stderr)
+        return None
     record["archived"] = bool(info.get("archived"))
     branch = info.get("default_branch") or "main"
 
@@ -145,17 +146,16 @@ def collect_workflow(entry, client, catalog, vocab):
         record["maintainers"] = [m for m in meta.get("maintainers") or [] if isinstance(m, dict)]
         record["outputs"], record["indicators"], record["unknown_indicators"] = normalize_outputs(meta, record["name"], vocab)
 
-    if record["visibility"] == "public":
-        version_path = catalog.get(repo.lower())
-        try:
-            if version_path:
-                record["desktop_version"] = _read_version(client, repo, branch, version_path)
-            if _branch_exists(client, repo, WEB_BRANCH):
-                path = version_path or find_version_path(client, repo, WEB_BRANCH)
-                if path:
-                    record["web_version"] = _read_version(client, repo, WEB_BRANCH, path)
-        except Exception as e:  # noqa: BLE001
-            errors.append(f"version: {e}")
+    version_path = catalog.get(repo.lower())
+    try:
+        if version_path:
+            record["desktop_version"] = _read_version(client, repo, branch, version_path)
+        if _branch_exists(client, repo, WEB_BRANCH):
+            path = version_path or find_version_path(client, repo, WEB_BRANCH)
+            if path:
+                record["web_version"] = _read_version(client, repo, WEB_BRANCH, path)
+    except Exception as e:  # noqa: BLE001
+        errors.append(f"version: {e}")
 
     try:
         record["ci_status"], record["ci_url"] = _ci(client, repo, branch)
@@ -175,7 +175,9 @@ def build(entries, client, catalog, vocab, unregistered, warnings=None):
     workflows = []
     for entry in entries:
         try:
-            workflows.append(collect_workflow(entry, client, catalog, vocab))
+            record = collect_workflow(entry, client, catalog, vocab)
+            if record is not None:
+                workflows.append(record)
         except Exception as e:  # noqa: BLE001 - one bad repo must not blank the page
             record = _empty_record(entry)
             record["errors"].append(f"unexpected: {e!r}")

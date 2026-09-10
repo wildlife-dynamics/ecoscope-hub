@@ -26,8 +26,10 @@ def issue_payload(sub_nodes, has_next=False, project_items=None, issue_type="Wor
     }
 
 
-def project_item(number, title, **fields):
+def project_item(number, title, project_text=None, **fields):
     nodes = [{"name": v, "field": {"name": k}} for k, v in fields.items()]
+    if project_text is not None:
+        nodes.append({"text": project_text, "field": {"name": "Project"}})
     nodes.append({})
     return {"project": {"number": number, "title": title, "url": f"https://github.com/orgs/o/projects/{number}"}, "fieldValues": {"nodes": nodes}}
 
@@ -37,14 +39,14 @@ def sub(number, state="OPEN", itype="Bug", repo="o/other"):
 
 
 def test_fetch_epic_reads_fields_from_wd_project_first(client, session):
-    items = [project_item(41, "Eden", Status="Done", Priority="P3"), project_item(9, "Wildlife Dynamics", Status="In progress", Priority="P1", Size="M")]
+    items = [project_item(41, "Eden", Status="Done", Priority="P3"), project_item(9, "Wildlife Dynamics", Status="In progress", Priority="P1", Size="M", project_text="WD General")]
     session.add("POST", f"{API}/graphql", FakeResponse(200, issue_payload([sub(741)], project_items=items)))
     record, errors = fetch_epic(client, "https://github.com/o/r/issues/1")
     assert errors == []
     assert record["status"] == "In progress"
     assert record["priority"] == "P1"
     assert record["size"] == "M"
-    assert [p["title"] for p in record["projects"]] == ["Eden", "Wildlife Dynamics"]
+    assert record["project"] == "WD General"
     assert record["type"] == "Workflow"
     assert record["sub_issues"] == [{"number": 741, "repo": "o/other", "title": "s741", "state": "OPEN", "type": "Bug", "url": "https://github.com/o/other/issues/741"}]
     assert record["sub_issues_total"] == 3
@@ -87,3 +89,10 @@ def test_fetch_epic_raises_when_issue_missing(client, session):
     session.add("POST", f"{API}/graphql", FakeResponse(200, {"data": {"repository": {"issue": None}}}))
     with pytest.raises(GitHubError, match="not found"):
         fetch_epic(client, "https://github.com/o/r/issues/1")
+
+
+def test_fetch_epic_project_text_field_absent_is_none(client, session):
+    items = [project_item(9, "Wildlife Dynamics", Status="Ready")]
+    session.add("POST", f"{API}/graphql", FakeResponse(200, issue_payload([], project_items=items)))
+    record, _ = fetch_epic(client, "https://github.com/o/r/issues/1")
+    assert record["project"] is None

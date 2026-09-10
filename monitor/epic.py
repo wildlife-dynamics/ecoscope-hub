@@ -3,7 +3,7 @@ from metadata import parse_epic_url
 
 WD_PROJECT_NUMBER = 9
 EPIC_TYPES = {"Workflow", "Epic"}
-FIELD_KEYS = {"Status": "status", "Priority": "priority", "Size": "size"}
+FIELD_KEYS = {"Status": "status", "Priority": "priority", "Size": "size", "Project": "project"}
 
 QUERY = """
 query($owner: String!, $name: String!, $number: Int!, $after: String) {
@@ -20,6 +20,10 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {
               ... on ProjectV2ItemFieldSingleSelectValue {
                 name
                 field { ... on ProjectV2SingleSelectField { name } }
+              }
+              ... on ProjectV2ItemFieldTextValue {
+                text
+                field { ... on ProjectV2Field { name } }
               }
             }
           }
@@ -43,8 +47,9 @@ def _project_fields(item):
     fields = {}
     for node in item.get("fieldValues", {}).get("nodes", []):
         field_name = (node.get("field") or {}).get("name")
-        if field_name in FIELD_KEYS and node.get("name") is not None:
-            fields[FIELD_KEYS[field_name]] = node["name"]
+        value = node.get("text") if node.get("text") is not None else node.get("name")
+        if field_name in FIELD_KEYS and value is not None:
+            fields[FIELD_KEYS[field_name]] = value
     return fields
 
 
@@ -99,7 +104,7 @@ def fetch_epic(client, url):
         "status": fields.get("status"),
         "priority": fields.get("priority"),
         "size": fields.get("size"),
-        "projects": [item["project"] for item in items if item.get("project")],
+        "project": fields.get("project"),
         "sub_issues": sub_issues,
         "sub_issues_total": summary.get("total", len(sub_issues)),
         "sub_issues_completed": summary.get("completed", 0),

@@ -11,8 +11,9 @@ def test_list_org_repos_skips_archived(client, session):
     session.add("GET", f"{API}/orgs/wd/repos", FakeResponse(200, [
         {"full_name": "wd/a", "private": False, "archived": False},
         {"full_name": "wd/b", "private": True, "archived": True},
+        {"full_name": "wd/c", "private": True, "archived": False},
     ]))
-    assert list_org_repos(client, "wd") == [{"repo": "wd/a", "visibility": "public"}]
+    assert list_org_repos(client, "wd") == [{"repo": "wd/a"}]
     assert session.calls[0]["params"]["type"] == "all"
 
 
@@ -24,16 +25,16 @@ def test_has_spec(client, session):
 
 def test_diff_groups():
     entries = [{"id": "a", "repo": "wd/a", "epic": None}, {"id": "z", "repo": "wd/z", "epic": None}, {"id": "noepicnorepo", "repo": None, "epic": "https://github.com/wd/x/issues/1"}]
-    org = [{"repo": "wd/a", "visibility": "public", "archived": False}, {"repo": "wd/b", "visibility": "private", "archived": False}, {"repo": "wd/c", "visibility": "public", "archived": False}]
+    org = [{"repo": "wd/a"}, {"repo": "wd/b"}, {"repo": "wd/c"}]
     result = diff(entries, org, {"wd/a": True, "wd/b": True, "wd/c": False})
-    assert result["missing"] == [{"repo": "wd/b", "visibility": "private"}]
+    assert result["missing"] == [{"repo": "wd/b"}]
     assert result["gone"] == ["z"]
     assert result["not_workflow"] == ["wd/c"]
 
 
 def test_diff_is_case_insensitive_on_repo():
     entries = [{"id": "a", "repo": "WD/A", "epic": None}]
-    org = [{"repo": "wd/a", "visibility": "public", "archived": False}]
+    org = [{"repo": "wd/a"}]
     result = diff(entries, org, {"wd/a": True})
     assert result["missing"] == [] and result["gone"] == []
 
@@ -41,7 +42,7 @@ def test_diff_is_case_insensitive_on_repo():
 def test_add_stubs_appends_and_preserves_existing(tmp_path):
     path = tmp_path / "registry.yaml"
     path.write_text("# keep me\nworkflows:\n  - id: a\n    repo: wd/a\n")
-    n = add_stubs(path, [{"repo": "wd/new-thing", "visibility": "public"}])
+    n = add_stubs(path, [{"repo": "wd/new-thing"}])
     assert n == 1
     text = path.read_text()
     assert text.startswith("# keep me")
@@ -59,7 +60,7 @@ def test_main_json_prints_missing(client, session, tmp_path, capsys, monkeypatch
     registry = tmp_path / "registry.yaml"
     registry.write_text("workflows:\n  - id: a\n    repo: wd/a\n")
     assert main(["--registry", str(registry), "--org", "wd", "--json"]) == 0
-    assert json.loads(capsys.readouterr().out) == [{"repo": "wd/b", "visibility": "public"}]
+    assert json.loads(capsys.readouterr().out) == [{"repo": "wd/b"}]
 
 
 def test_main_warns_and_continues_on_unreadable_repo(client, session, tmp_path, capsys, monkeypatch):
@@ -74,7 +75,7 @@ def test_main_warns_and_continues_on_unreadable_repo(client, session, tmp_path, 
     registry.write_text("workflows: []\n")
     assert main(["--registry", str(registry), "--org", "wd", "--json"]) == 0
     out, err = capsys.readouterr()
-    assert json.loads(out) == [{"repo": "wd/b", "visibility": "public"}]
+    assert json.loads(out) == [{"repo": "wd/b"}]
     assert "warning: could not read" in err
 
 
@@ -95,7 +96,7 @@ def test_main_json_prints_empty_list_when_org_listing_fails(client, session, tmp
 def test_add_stubs_handles_empty_flow_list(tmp_path):
     path = tmp_path / "registry.yaml"
     path.write_text("workflows: []\n")
-    n = add_stubs(path, [{"repo": "wd/new-thing", "visibility": "public"}])
+    n = add_stubs(path, [{"repo": "wd/new-thing"}])
     assert n == 1
     data = yaml.safe_load(path.read_text())
     assert data["workflows"] == [{"id": "new-thing", "repo": "wd/new-thing"}]
@@ -107,7 +108,7 @@ def test_add_stubs_rolls_back_on_unparseable_result(tmp_path):
     path = tmp_path / "registry.yaml"
     path.write_text("workflows: {a: 1}\n")
     try:
-        add_stubs(path, [{"repo": "wd/new", "visibility": "public"}])
+        add_stubs(path, [{"repo": "wd/new"}])
         assert False, "should raise RegistryError"
     except RegistryError:
         pass

@@ -15,9 +15,9 @@ HERE = Path(__file__).parent
 def list_org_repos(client, org):
     repos = client.paginate(f"/orgs/{org}/repos", params={"type": "all"})
     return [
-        {"repo": r["full_name"], "visibility": "private" if r.get("private") else "public"}
+        {"repo": r["full_name"]}
         for r in repos
-        if not r.get("archived")
+        if not r.get("archived") and not r.get("private")
     ]
 
 
@@ -33,7 +33,7 @@ def diff(entries, org_repos, spec_flags):
     registered = {e["repo"].lower(): e["id"] for e in entries if e.get("repo")}
     org_by_name = {r["repo"].lower(): r for r in org_repos}
     missing = [
-        {"repo": r["repo"], "visibility": r["visibility"]}
+        {"repo": r["repo"]}
         for r in org_repos
         if spec_flags.get(r["repo"], False) and r["repo"].lower() not in registered
     ]
@@ -104,7 +104,7 @@ def main(argv=None):
     else:
         print(f"Workflow repos not in registry ({len(result['missing'])}):")
         for item in result["missing"]:
-            print(f"  {item['repo']} ({item['visibility']})")
+            print(f"  {item['repo']}")
         print(f"Registry entries whose repo is gone or archived ({len(result['gone'])}):")
         for wid in result["gone"]:
             print(f"  {wid}")

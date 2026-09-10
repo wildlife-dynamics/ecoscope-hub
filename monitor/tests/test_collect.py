@@ -110,7 +110,6 @@ def test_collect_workflow_public_repo_full_record(client, session):
     record = collect_workflow(full_entry(), client, {"o/r": "pkg-workflow/VERSION.yaml"}, VOCAB)
     assert record["errors"] == []
     assert record["epic"]["status"] == "Ready"
-    assert record["visibility"] == "public"
     assert record["name"] == "NDVI Workflow"
     assert record["maintainers"] == [{"name": "Yun", "email": "y@x", "role": "owner"}]
     assert record["outputs"][0]["components"][0]["indicators"] == ["ndvi"]
@@ -124,18 +123,15 @@ def test_collect_workflow_public_repo_full_record(client, session):
     assert record["metadata_missing"] is False and record["spec_missing"] is False
 
 
-def test_collect_workflow_private_repo_has_no_availability(client, session):
+def test_collect_workflow_private_repo_is_excluded(client, session):
     add_epic(session)
     add_repo(session, private=True)
-    add_spec(session)
-    session.add("GET", f"{API}/repos/o/r/branches/ecoscope-web", FakeResponse(200, {"name": "ecoscope-web"}))
-    add_ci(session)
-    add_issues(session)
     record = collect_workflow(full_entry(), client, {"o/r": "pkg-workflow/VERSION.yaml"}, VOCAB)
-    assert record["visibility"] == "private"
-    assert record["desktop_version"] is None
-    assert record["web_version"] is None
+    assert record is None
+    assert not any(c["url"].endswith("/contents/spec.yaml") for c in session.calls)
     assert not any("VERSION" in c["url"] for c in session.calls)
+    assert not any(c["url"].endswith("/branches/ecoscope-web") for c in session.calls)
+    assert not any(c["url"].endswith("/issues") for c in session.calls)
 
 
 def test_collect_workflow_not_in_catalog_and_no_web_branch(client, session):
@@ -189,7 +185,6 @@ def test_collect_workflow_repo_404_records_error_but_keeps_epic(client, session)
     add_epic(session)
     record = collect_workflow(full_entry(), client, {}, VOCAB)
     assert record["epic"]["status"] == "Ready"
-    assert record["visibility"] is None
     assert any("repo not found" in e for e in record["errors"])
 
 
@@ -260,12 +255,19 @@ def test_build_isolates_failures_and_stamps_time(client, session):
     add_ci(session)
     add_issues(session)
     entries = [full_entry(), {"id": "gone", "repo": "o/gone", "epic": None}]
-    snapshot = build(entries, client, {}, VOCAB, [{"repo": "o/new", "visibility": "public"}])
+    snapshot = build(entries, client, {}, VOCAB, [{"repo": "o/new"}])
     assert snapshot["generated_at"].endswith("Z")
     assert [w["id"] for w in snapshot["workflows"]] == ["r", "gone"]
     assert snapshot["workflows"][1]["errors"]
-    assert snapshot["unregistered"] == [{"repo": "o/new", "visibility": "public"}]
+    assert snapshot["unregistered"] == [{"repo": "o/new"}]
     assert snapshot["warnings"] == []
+
+
+def test_build_skips_private_records(client, session):
+    add_epic(session)
+    add_repo(session, private=True)
+    snapshot = build([full_entry()], client, {}, VOCAB, [])
+    assert snapshot["workflows"] == []
 
 
 def test_main_writes_json_and_honours_only(tmp_path, session, monkeypatch):
@@ -284,7 +286,7 @@ def test_main_writes_json_and_honours_only(tmp_path, session, monkeypatch):
     indicators = tmp_path / "indicators.yaml"
     indicators.write_text("indicators:\n  ndvi:\n    label: NDVI\n")
     unregistered = tmp_path / "unreg.json"
-    unregistered.write_text('[{"repo": "o/new", "visibility": "public"}]')
+    unregistered.write_text('[{"repo": "o/new"}]')
     out = tmp_path / "build" / "data.json"
     code = main(["--registry", str(registry), "--indicators", str(indicators), "--out", str(out), "--only", "r", "--unregistered", str(unregistered)])
     assert code == 0

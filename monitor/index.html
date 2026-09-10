@@ -83,7 +83,7 @@
   </div>
   <div class="count" id="wf-count"></div>
   <div class="tablewrap"><table id="wf-table"><thead><tr>
-    <th data-key="priority">Priority</th><th data-key="name">Workflow</th><th data-key="projects">Projects</th>
+    <th data-key="priority">Priority</th><th data-key="name">Workflow</th><th data-key="project">Project</th>
     <th data-key="status">Status</th><th data-key="epic">Epic</th><th data-key="desktop">Desktop</th><th data-key="web">Web</th>
     <th data-key="outputs">Outputs</th><th data-key="indicators">Indicators</th><th data-key="ci">CI</th><th data-key="open">Open work</th>
   </tr></thead><tbody></tbody></table></div>
@@ -142,7 +142,7 @@
     sel.value = keep;
   }
   function uniq(list) { return [...new Set(list.filter(Boolean))]; }
-  function projectsOf(w) { return (w.epic?.projects || []).map(p => p.title); }
+  function projectOf(w) { return w.epic?.project || ''; }
   function openWork(w) {
     const subs = (w.epic?.sub_issues || []).filter(s => s.state === 'OPEN').length;
     return subs + (w.open_issue_count || 0);
@@ -157,7 +157,6 @@
     if (w.spec_missing && w.repo) out.push('<span class="badge bad">no spec.yaml</span>');
     else if (w.metadata_missing) out.push('<span class="badge">no metadata</span>');
     if (!w.epic) out.push('<span class="badge">no epic</span>');
-    if (w.visibility === 'private') out.push('<span class="badge">private</span>');
     if (w.archived) out.push('<span class="badge">archived</span>');
     if (w.unknown_indicators?.length) out.push(`<span class="badge" title="${esc(w.unknown_indicators.join(', '))}">unknown indicators</span>`);
     if (w.errors?.length) out.push(`<span class="badge bad" title="${esc(w.errors.join('\n'))}">${w.errors.length} error${w.errors.length > 1 ? 's' : ''}</span>`);
@@ -168,7 +167,7 @@
     switch (key) {
       case 'priority': return [rank(PRIORITY_ORDER, w.epic?.priority), rank(STATUS_ORDER, w.epic?.status), w.name.toLowerCase()];
       case 'name': return [w.name.toLowerCase()];
-      case 'projects': return [projectsOf(w).join(',').toLowerCase()];
+      case 'project': return [projectOf(w).toLowerCase()];
       case 'status': return [rank(STATUS_ORDER, w.epic?.status), w.name.toLowerCase()];
       case 'epic': return [w.epic?.state || 'zz'];
       case 'desktop': return [w.desktop_version || 'zz'];
@@ -190,7 +189,7 @@
     const f = currentFilters(); const q = f.q.trim().toLowerCase();
     return state.workflows.filter(w => {
       if (q && !(w.id + ' ' + w.name + ' ' + w.indicators.join(' ')).toLowerCase().includes(q)) return false;
-      if (f.project && !projectsOf(w).includes(f.project)) return false;
+      if (f.project && projectOf(w) !== f.project) return false;
       if (f.status && (w.epic?.status || '') !== f.status) return false;
       if (f.priority && (w.epic?.priority || '') !== f.priority) return false;
       if (f.otype && !w.outputs.some(o => o.type === f.otype)) return false;
@@ -211,7 +210,7 @@
       const row = `<tr class="row" data-id="${esc(w.id)}">
         <td>${chip(e?.priority, priorityClass(e?.priority)) || '<span class="muted">—</span>'}</td>
         <td><strong>${esc(w.name)}</strong> <span class="muted">${esc(w.id !== w.name ? w.id : '')}</span>${badges(w)}</td>
-        <td>${projectsOf(w).map(p => chip(p)).join('') || '<span class="muted">—</span>'}</td>
+        <td>${chip(projectOf(w)) || '<span class="muted">—</span>'}</td>
         <td>${chip(e?.status, statusClass(e?.status)) || '<span class="muted">—</span>'}</td>
         <td>${e ? link(e.url, '#' + e.url.split('/').pop()) + (e.state === 'CLOSED' ? ' <span class="muted">closed</span>' : '') : '<span class="muted">—</span>'}</td>
         <td>${w.desktop_version ? chip('v' + w.desktop_version, 'ok') : '<span class="muted">—</span>'}</td>
@@ -268,7 +267,7 @@
       if (f.oind && !c.indicators.includes(f.oind)) return false;
       if (f.octype && c.type !== f.octype) return false;
       if (f.odtype && o.type !== f.odtype) return false;
-      if (f.oproject && !projectsOf(w).includes(f.oproject)) return false;
+      if (f.oproject && projectOf(w) !== f.oproject) return false;
       return true;
     });
     $('#out-count').textContent = `${rows.length} of ${all.length} components`;
@@ -283,7 +282,7 @@
   function renderUnregistered() {
     const ul = $('#unreg ul');
     $('#unreg summary').textContent = `Unregistered workflow repos (${state.unregistered.length})`;
-    ul.innerHTML = state.unregistered.map(u => `<li>${link('https://github.com/' + u.repo, u.repo)} <span class="muted">${esc(u.visibility)}</span></li>`).join('') || '<li class="muted">None.</li>';
+    ul.innerHTML = state.unregistered.map(u => `<li>${link('https://github.com/' + u.repo, u.repo)}</li>`).join('') || '<li class="muted">None.</li>';
   }
 
   function showTab(name) {
@@ -309,7 +308,7 @@
       gen.insertAdjacentElement('afterend', w);
     }
 
-    const projects = uniq(state.workflows.flatMap(projectsOf)).sort();
+    const projects = uniq(state.workflows.map(projectOf)).sort();
     fillSelect($('#wf-project'), projects); fillSelect($('#out-project'), projects);
     fillSelect($('#wf-status'), uniq(state.workflows.map(w => w.epic?.status)).sort((a, b) => rank(STATUS_ORDER, a) - rank(STATUS_ORDER, b)));
     fillSelect($('#wf-priority'), uniq(state.workflows.map(w => w.epic?.priority)).sort());
