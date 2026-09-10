@@ -5,7 +5,7 @@ from epic import fetch_epic
 from gh import API, GitHubError
 
 
-def issue_payload(sub_nodes, has_next=False, project_items=None, issue_type="Workflow"):
+def issue_payload(sub_nodes, has_next=False, project_items=None, issue_type="Workflow", assignees=None):
     return {
         "data": {
             "repository": {
@@ -14,6 +14,7 @@ def issue_payload(sub_nodes, has_next=False, project_items=None, issue_type="Wor
                     "state": "OPEN",
                     "url": "https://github.com/o/r/issues/1",
                     "issueType": {"name": issue_type} if issue_type else None,
+                    "assignees": {"nodes": [{"login": a} for a in (assignees or [])]},
                     "subIssuesSummary": {"total": 3, "completed": 1},
                     "projectItems": {"nodes": project_items or []},
                     "subIssues": {
@@ -40,7 +41,7 @@ def sub(number, state="OPEN", itype="Bug", repo="o/other"):
 
 def test_fetch_epic_reads_fields_from_wd_project_first(client, session):
     items = [project_item(41, "Eden", Status="Done", Priority="P3"), project_item(9, "Wildlife Dynamics", Status="In progress", Priority="P1", Size="M", project_text="WD General")]
-    session.add("POST", f"{API}/graphql", FakeResponse(200, issue_payload([sub(741)], project_items=items)))
+    session.add("POST", f"{API}/graphql", FakeResponse(200, issue_payload([sub(741)], project_items=items, assignees=["yun-wu", "octocat"])))
     record, errors = fetch_epic(client, "https://github.com/o/r/issues/1")
     assert errors == []
     assert record["status"] == "In progress"
@@ -48,6 +49,7 @@ def test_fetch_epic_reads_fields_from_wd_project_first(client, session):
     assert record["size"] == "M"
     assert record["project"] == "WD General"
     assert record["type"] == "Workflow"
+    assert record["assignees"] == ["yun-wu", "octocat"]
     assert record["sub_issues"] == [{"number": 741, "repo": "o/other", "title": "s741", "state": "OPEN", "type": "Bug", "url": "https://github.com/o/other/issues/741"}]
     assert record["sub_issues_total"] == 3
     assert record["sub_issues_completed"] == 1
@@ -96,3 +98,9 @@ def test_fetch_epic_project_text_field_absent_is_none(client, session):
     session.add("POST", f"{API}/graphql", FakeResponse(200, issue_payload([], project_items=items)))
     record, _ = fetch_epic(client, "https://github.com/o/r/issues/1")
     assert record["project"] is None
+
+
+def test_fetch_epic_no_assignees_is_empty_list(client, session):
+    session.add("POST", f"{API}/graphql", FakeResponse(200, issue_payload([])))
+    record, _ = fetch_epic(client, "https://github.com/o/r/issues/1")
+    assert record["assignees"] == []

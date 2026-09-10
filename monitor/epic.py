@@ -11,6 +11,7 @@ query($owner: String!, $name: String!, $number: Int!, $after: String) {
     issue(number: $number) {
       title state url
       issueType { name }
+      assignees(first: 10) { nodes { login } }
       subIssuesSummary { total completed }
       projectItems(first: 20) {
         nodes {
@@ -96,6 +97,7 @@ def fetch_epic(client, url):
     if issue_type not in EPIC_TYPES:
         errors.append(f"epic issue type is {issue_type!r}, expected Workflow or Epic")
     summary = issue.get("subIssuesSummary") or {}
+    assignees = [n["login"] for n in issue.get("assignees", {}).get("nodes", []) if n.get("login")]
     record = {
         "url": issue.get("url") or url,
         "title": issue.get("title"),
@@ -105,6 +107,7 @@ def fetch_epic(client, url):
         "priority": fields.get("priority"),
         "size": fields.get("size"),
         "project": fields.get("project"),
+        "assignees": assignees,
         "sub_issues": sub_issues,
         "sub_issues_total": summary.get("total", len(sub_issues)),
         "sub_issues_completed": summary.get("completed", 0),

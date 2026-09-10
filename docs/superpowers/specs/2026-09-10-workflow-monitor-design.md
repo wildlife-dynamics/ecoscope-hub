@@ -69,6 +69,8 @@ One GraphQL query per epic (header `GraphQL-Features: issue_types`):
   and does not validate them.
 - `project`: the board's free-text `Project` field (e.g. `WD General`, `Mara Triangle`), read
   like status/priority/size.
+- `assignees`: the epic issue's own assignee logins (up to 10), shown as an Assignee column on
+  the Workflows tab and in the modal's Epic block.
 - `subIssues` (paginated): number, title, state, url, repo, issue type; plus
   `subIssuesSummary` (`total`, `completed`). Sub-issues may live in any repo.
 
@@ -131,6 +133,7 @@ get `spec_missing: true`. Both still produce a row.
                "title": "NDVI Workflow", "state": "OPEN", "type": "Workflow",
                "status": "In progress", "priority": "P1", "size": "M",
                "project": "WD General",
+               "assignees": ["octocat"],
                "sub_issues": [{"number": 741, "repo": "wildlife-dynamics/ecoscope",
                                "title": "...", "state": "OPEN", "type": "Bug", "url": "..."}],
                "sub_issues_total": 2, "sub_issues_completed": 0},
@@ -247,7 +250,7 @@ chips).
   hash.
 - Table, default sort by priority (P0 first, missing last), then status in project order,
   then name; any column sortable:
-  `Priority | Workflow | Project | Status | Desktop | Web | Outputs | CI | Open work`
+  `Priority | Workflow | Project | Status | Assignee | Desktop | Web | Outputs | CI | Open work`
   `Open work` is open sub-issues + repo open issues; the `Outputs` cell lists each output's
   name as a chip, in declared order (title = type). The epic link itself moved into the
   drill-down modal.
