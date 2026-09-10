@@ -171,7 +171,7 @@ def collect_workflow(entry, client, catalog, vocab):
     return record
 
 
-def build(entries, client, catalog, vocab, unregistered):
+def build(entries, client, catalog, vocab, unregistered, warnings=None):
     workflows = []
     for entry in entries:
         try:
@@ -182,6 +182,7 @@ def build(entries, client, catalog, vocab, unregistered):
             workflows.append(record)
     return {
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "warnings": list(warnings or []),
         "unregistered": list(unregistered or []),
         "workflows": workflows,
     }
@@ -199,7 +200,13 @@ def main(argv=None):
     try:
         entries = load_registry(args.registry)
         vocab = load_indicators(args.indicators)
-        unregistered = json.loads(Path(args.unregistered).read_text()) if args.unregistered else []
+        unregistered = []
+        if args.unregistered:
+            unregistered_path = Path(args.unregistered)
+            if unregistered_path.exists():
+                unregistered = json.loads(unregistered_path.read_text())
+            else:
+                print(f"warning: unregistered file not found: {unregistered_path}", file=sys.stderr)
     except (RegistryError, OSError, yaml.YAMLError, json.JSONDecodeError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 2
@@ -207,13 +214,15 @@ def main(argv=None):
         entries = [e for e in entries if e["id"] in set(args.only)]
 
     client = GitHubClient()
+    warnings = []
     try:
         catalog = fetch_catalog(client.session)
     except Exception as e:  # noqa: BLE001
         print(f"warning: catalog unavailable ({e}); desktop versions will be empty", file=sys.stderr)
         catalog = {}
+        warnings.append(f"Desktop catalog unavailable: {e}")
 
-    snapshot = build(entries, client, catalog, vocab, unregistered)
+    snapshot = build(entries, client, catalog, vocab, unregistered, warnings=warnings)
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(snapshot, indent=2, sort_keys=False) + "\n")

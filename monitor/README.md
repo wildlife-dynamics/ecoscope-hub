@@ -21,6 +21,7 @@ To find workflow repos that are not registered yet:
 
     cd monitor
     export MONITOR_PAT=$(gh auth token)      # needs read:project for epic fields
+    mkdir -p build
     pixi run discover -- --json > build/unregistered.json
     pixi run collect -- --unregistered build/unregistered.json
     python -m http.server 8765               # then open http://localhost:8765/index.html
@@ -30,15 +31,28 @@ To find workflow repos that are not registered yet:
 ## Tests
 
     cd monitor
-    pixi run test                            # unit tests, no network
+    pixi run test                            # unit tests, no network when MONITOR_PAT/GITHUB_TOKEN are unset (the live test skips)
     MONITOR_PAT=$(gh auth token) pixi run test -- tests/test_live.py   # live smoke test
 
-## CI secret
+## One-time setup
 
 The Action needs a repo secret `MONITOR_PAT`: a fine-grained personal access token for the
 `wildlife-dynamics` org with **Organization permissions → Projects: read** and **Repository
 permissions → Contents, Issues, Actions, Metadata: read** on all repos. Without it, epics show
 errors and private repos do not resolve.
+
+Two one-time commands, then a manual run:
+
+    gh api -X POST repos/wildlife-dynamics/ecoscope-hub/pages -f build_type=workflow   # enable Pages with source = GitHub Actions
+    gh secret set MONITOR_PAT --repo wildlife-dynamics/ecoscope-hub                     # set the secret above
+    gh workflow run monitor.yml --repo wildlife-dynamics/ecoscope-hub                   # run the workflow once by hand
+
+The first deploy fails until Pages is enabled.
+
+## Visibility
+
+The site is public. Registry entries for private repos publish their epic, sub-issue, and issue
+titles at a public URL. Omit such an entry from the registry if that is not acceptable.
 
 ## Indicators
 

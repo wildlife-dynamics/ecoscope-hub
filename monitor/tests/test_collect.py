@@ -265,6 +265,7 @@ def test_build_isolates_failures_and_stamps_time(client, session):
     assert [w["id"] for w in snapshot["workflows"]] == ["r", "gone"]
     assert snapshot["workflows"][1]["errors"]
     assert snapshot["unregistered"] == [{"repo": "o/new", "visibility": "public"}]
+    assert snapshot["warnings"] == []
 
 
 def test_main_writes_json_and_honours_only(tmp_path, session, monkeypatch):
@@ -290,6 +291,50 @@ def test_main_writes_json_and_honours_only(tmp_path, session, monkeypatch):
     data = json.loads(out.read_text())
     assert [w["id"] for w in data["workflows"]] == ["r"]
     assert data["unregistered"][0]["repo"] == "o/new"
+
+
+def test_main_missing_unregistered_file_is_tolerated(tmp_path, session, monkeypatch):
+    import collect as mod
+
+    real = mod.GitHubClient
+    monkeypatch.setattr(mod, "GitHubClient", lambda: real(token="t", session=session))
+    session.add("GET", CATALOG_URL, FakeResponse(200, []))
+    add_epic(session)
+    add_repo(session)
+    add_spec(session)
+    add_ci(session)
+    add_issues(session)
+    registry = tmp_path / "registry.yaml"
+    registry.write_text("workflows:\n  - id: r\n    repo: o/r\n    epic: https://github.com/o/r/issues/1\n")
+    indicators = tmp_path / "indicators.yaml"
+    indicators.write_text("indicators:\n  ndvi:\n    label: NDVI\n")
+    out = tmp_path / "build" / "data.json"
+    code = main(["--registry", str(registry), "--indicators", str(indicators), "--out", str(out), "--unregistered", str(tmp_path / "missing.json")])
+    assert code == 0
+    data = json.loads(out.read_text())
+    assert data["unregistered"] == []
+
+
+def test_main_records_catalog_warning(tmp_path, session, monkeypatch):
+    import collect as mod
+
+    real = mod.GitHubClient
+    monkeypatch.setattr(mod, "GitHubClient", lambda: real(token="t", session=session))
+    session.add("GET", CATALOG_URL, FakeResponse(503, {}))
+    add_epic(session)
+    add_repo(session)
+    add_spec(session)
+    add_ci(session)
+    add_issues(session)
+    registry = tmp_path / "registry.yaml"
+    registry.write_text("workflows:\n  - id: r\n    repo: o/r\n    epic: https://github.com/o/r/issues/1\n")
+    indicators = tmp_path / "indicators.yaml"
+    indicators.write_text("indicators:\n  ndvi:\n    label: NDVI\n")
+    out = tmp_path / "build" / "data.json"
+    code = main(["--registry", str(registry), "--indicators", str(indicators), "--out", str(out)])
+    assert code == 0
+    data = json.loads(out.read_text())
+    assert data["warnings"] == ["Desktop catalog unavailable: catalog fetch failed: 503"]
 
 
 def test_main_fails_on_invalid_registry(tmp_path, capsys):

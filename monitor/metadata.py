@@ -40,7 +40,6 @@ def load_registry(path):
     return entries
 
 
-DELIVERABLE_TYPES = {"dashboard", "report", "file"}
 COMPONENT_TYPES = {"map", "plot", "table", "text", "figure"}
 
 

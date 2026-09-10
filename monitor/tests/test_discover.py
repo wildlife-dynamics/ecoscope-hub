@@ -12,7 +12,7 @@ def test_list_org_repos_skips_archived(client, session):
         {"full_name": "wd/a", "private": False, "archived": False},
         {"full_name": "wd/b", "private": True, "archived": True},
     ]))
-    assert list_org_repos(client, "wd") == [{"repo": "wd/a", "visibility": "public", "archived": False}]
+    assert list_org_repos(client, "wd") == [{"repo": "wd/a", "visibility": "public"}]
     assert session.calls[0]["params"]["type"] == "all"
 
 
@@ -76,6 +76,20 @@ def test_main_warns_and_continues_on_unreadable_repo(client, session, tmp_path, 
     out, err = capsys.readouterr()
     assert json.loads(out) == [{"repo": "wd/b", "visibility": "public"}]
     assert "warning: could not read" in err
+
+
+def test_main_json_prints_empty_list_when_org_listing_fails(client, session, tmp_path, capsys, monkeypatch):
+    import discover as mod
+
+    real = mod.GitHubClient
+    monkeypatch.setattr(mod, "GitHubClient", lambda: real(token="t", session=session))
+    session.add("GET", f"{API}/orgs/wd/repos", FakeResponse(500, {"message": "boom"}))
+    registry = tmp_path / "registry.yaml"
+    registry.write_text("workflows:\n  - id: a\n    repo: wd/a\n")
+    assert main(["--registry", str(registry), "--org", "wd", "--json"]) == 0
+    out, err = capsys.readouterr()
+    assert out.strip() == "[]"
+    assert "could not list org repos" in err
 
 
 def test_add_stubs_handles_empty_flow_list(tmp_path):

@@ -30,6 +30,7 @@ workflows:
   - id: curacao-turtle-monitoring
     repo: wildlife-dynamics/curacao-turtle_monitoring
     epic: https://github.com/wildlife-dynamics/curacao-turtle_monitoring/issues/1
+  # APN hosts two workflows in one repo; both rows share its spec.yaml and issue list.
   - id: apn-exotic-animal-control
     repo: wildlife-dynamics/APN
     epic: https://github.com/wildlife-dynamics/APN/issues/180

@@ -1,7 +1,10 @@
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
+
+import yaml
 
 from gh import GitHubClient, GitHubError, NotFound
 from metadata import RegistryError, load_registry
@@ -12,7 +15,7 @@ HERE = Path(__file__).parent
 def list_org_repos(client, org):
     repos = client.paginate(f"/orgs/{org}/repos", params={"type": "all"})
     return [
-        {"repo": r["full_name"], "visibility": "private" if r.get("private") else "public", "archived": False}
+        {"repo": r["full_name"], "visibility": "private" if r.get("private") else "public"}
         for r in repos
         if not r.get("archived")
     ]
@@ -40,9 +43,6 @@ def diff(entries, org_repos, spec_flags):
 
 
 def add_stubs(registry_path, missing):
-    import re
-    import yaml
-
     path = Path(registry_path)
     original_text = path.read_text()
     text = original_text
@@ -83,7 +83,13 @@ def main(argv=None):
         print(f"error: {e}", file=sys.stderr)
         return 2
     client = GitHubClient()
-    org_repos = list_org_repos(client, args.org)
+    try:
+        org_repos = list_org_repos(client, args.org)
+    except GitHubError as e:
+        print(f"warning: could not list org repos: {e}", file=sys.stderr)
+        if args.json:
+            print("[]")
+        return 0
     spec_flags = {}
     for r in org_repos:
         try:

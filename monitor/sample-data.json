@@ -1,5 +1,6 @@
 {
   "generated_at": "2026-09-10T12:00:00Z",
+  "warnings": [],
   "unregistered": [{"repo": "wildlife-dynamics/mnc-patrol-effort", "visibility": "public"}],
   "workflows": [
     {
