@@ -40,9 +40,6 @@ def load_registry(path):
     return entries
 
 
-COMPONENT_TYPES = {"map", "plot", "table", "text", "figure"}
-
-
 def load_indicators(path):
     data = yaml.safe_load(Path(path).read_text()) or {}
     vocab = {}
@@ -75,23 +72,9 @@ def normalize_indicators(raw, vocab):
     return canonical, unknown
 
 
-def _component(entry, vocab):
-    indicators, unknown = normalize_indicators(entry.get("indicators"), vocab)
-    return (
-        {
-            "name": str(entry.get("name") or ""),
-            "type": str(entry.get("type") or ""),
-            "description": str(entry.get("description") or ""),
-            "indicators": indicators,
-        },
-        unknown,
-    )
-
-
 def normalize_outputs(meta, fallback_name, vocab):
     raw = (meta or {}).get("outputs") or []
     outputs, all_indicators, all_unknown = [], [], []
-    implicit = None
 
     def note(indicators, unknown):
         for i in indicators:
@@ -101,35 +84,23 @@ def normalize_outputs(meta, fallback_name, vocab):
             if u not in all_unknown:
                 all_unknown.append(u)
 
+    def make_output(entry):
+        indicators, unknown = normalize_indicators(entry.get("indicators"), vocab)
+        note(indicators, unknown)
+        return {
+            "name": str(entry.get("name") or ""),
+            "type": str(entry.get("type") or ""),
+            "description": str(entry.get("description") or ""),
+            "indicators": indicators,
+        }
+
     for entry in raw:
         if not isinstance(entry, dict):
             continue
-        etype = str(entry.get("type") or "")
-        if etype in COMPONENT_TYPES:
-            component, unknown = _component(entry, vocab)
-            note(component["indicators"], unknown)
-            if implicit is None:
-                implicit = {"name": f"{fallback_name} Dashboard", "type": "dashboard", "description": "", "components": []}
-                outputs.append(implicit)
-            implicit["components"].append(component)
-            continue
-        components = []
+        outputs.append(make_output(entry))
         for c in entry.get("components") or []:
             if isinstance(c, dict):
-                component, unknown = _component(c, vocab)
-                note(component["indicators"], unknown)
-                components.append(component)
-        top_indicators, unknown = normalize_indicators(entry.get("indicators"), vocab)
-        note(top_indicators, unknown)
-        output = {
-            "name": str(entry.get("name") or ""),
-            "type": etype,
-            "description": str(entry.get("description") or ""),
-            "components": components,
-        }
-        if etype == "dashboard" and implicit is None:
-            implicit = output
-        outputs.append(output)
+                outputs.append(make_output(c))
     return outputs, all_indicators, all_unknown
 
 

@@ -122,7 +122,7 @@ def test_collect_workflow_public_repo_full_record(client, session):
     assert record["epic"]["status"] == "Ready"
     assert record["name"] == "NDVI Workflow"
     assert record["maintainers"] == [{"name": "Yun", "email": "y@x", "role": "owner"}]
-    assert record["outputs"][0]["components"][0]["indicators"] == ["ndvi"]
+    assert record["outputs"][0]["indicators"] == ["ndvi"]
     assert record["indicators"] == ["ndvi"]
     assert record["desktop_version"] == "1.2.3"
     assert record["web_version"] == "1.0.0"

@@ -8,7 +8,7 @@ Status: approved in conversation, awaiting written review
 A single page where the internal team can see every ecoscope workflow the org maintains,
 which partner project it is for (the board's Project field), where it is in its development lifecycle, whether and at
 which version it is available on Ecoscope Desktop and the web platform, what it produces
-(deliverables, components, indicators), whether CI is green, and which GitHub issues are
+(outputs and their indicators), whether CI is green, and which GitHub issues are
 open. It must answer fleet-wide questions such as "which workflows calculate NDVI" and "is
 there a map of last-visited patrol areas", and present workflows in priority order.
 
@@ -23,7 +23,7 @@ in-page editing) reuses the collector and page unchanged; it is out of scope her
 |---|---|---|
 | Which workflows exist, and the epic issue for each | ecoscope-hub | `monitor/registry.yaml` |
 | Lifecycle status, priority, size, the board's `Project` text field, tracked sub-issues | GitHub Projects | the epic issue's project items (Wildlife Dynamics project #9 first) and sub-issues, via GraphQL |
-| Name, description, maintainers, outputs → components → indicators | each workflow repo | `metadata:` block in `spec.yaml` on the default branch, falling back to `ecoscope-web` when the default branch has no `metadata:` block; `metadata_source` records which |
+| Name, description, maintainers, outputs → indicators | each workflow repo | `metadata:` block in `spec.yaml` on the default branch, falling back to `ecoscope-web` when the default branch has no `metadata:` block; `metadata_source` records which |
 | Canonical indicator vocabulary | ecoscope-hub | `monitor/indicators.yaml` |
 | Desktop availability + version | derived | repo is public **and** listed in the Desktop catalog JSON (catalog URLs are resolved to each repo's canonical name so renames still match); version from `VERSION.yaml` on `main` |
 | Web availability + version | derived | repo is public **and** has an `ecoscope-web` branch; version from `VERSION.yaml` on that branch |
@@ -90,7 +90,9 @@ id. Unknown indicators are kept verbatim and flagged on the record (`unknown_ind
 
 ## Spec metadata — outputs schema
 
-Nested shape (target for all repos):
+Outputs are shown exactly as declared: a flat list of `{name, type, description, indicators}`,
+one entry per item in `metadata.outputs`, in declared order. No implicit grouping or
+dashboard-wrapping.
 
 ```yaml
 metadata:
@@ -100,19 +102,18 @@ metadata:
     - {name: ..., email: ..., role: owner}
   outputs:
     - name: NDVI Dashboard
-      type: dashboard            # dashboard | report | file
+      type: dashboard
       description: ...
-      components:
-        - name: NDVI Map
-          type: map              # map | plot | table | text | figure
-          description: Mean NDVI per region of interest for the selected period
-          indicators: [ndvi]
+    - name: NDVI Map
+      type: map
+      description: Mean NDVI per region of interest for the selected period
+      indicators: [ndvi]
 ```
 
-Compatibility: the current flat shape in wt-ndvi (top-level `map`/`plot` entries with
-`indicators`) is accepted. Top-level entries whose `type` is a component type are attached to
-an implicit `dashboard` deliverable named `<workflow name> Dashboard`. `indicators` entries may
-be strings or `{name: ...}` objects.
+Compatibility: an entry may still carry a nested `components` list (the older shape); each
+component is flattened into its own output entry, placed immediately after its parent, with
+its own name/type/description/indicators — never nested in the output. `indicators` entries
+may be strings or `{name: ...}` objects.
 
 Repos with no `metadata:` block get `metadata_missing: true`; repos with no root `spec.yaml`
 get `spec_missing: true`. Both still produce a row.
@@ -135,9 +136,8 @@ get `spec_missing: true`. Both still produce a row.
                "sub_issues_total": 2, "sub_issues_completed": 0},
       "archived": false,
       "name": "NDVI Workflow", "description": "...", "maintainers": [],
-      "outputs": [{"name": "...", "type": "dashboard", "description": "...",
-                   "components": [{"name": "...", "type": "map", "description": "...",
-                                   "indicators": ["ndvi"]}]}],
+      "outputs": [{"name": "...", "type": "dashboard", "description": "...", "indicators": []},
+                  {"name": "...", "type": "map", "description": "...", "indicators": ["ndvi"]}],
       "indicators": ["ndvi"], "unknown_indicators": [],
       "metadata_missing": false, "spec_missing": false,
       "desktop_version": "1.0.0", "web_version": "1.0.0",
@@ -151,7 +151,7 @@ get `spec_missing: true`. Both still produce a row.
 }
 ```
 
-`indicators` is the de-duplicated union over all components, for filtering. `epic` is `null`
+`indicators` is the de-duplicated union over all outputs, for filtering. `epic` is `null`
 when the registry entry has no epic or it could not be read.
 
 ## Collector — `monitor/collect.py`
@@ -228,22 +228,22 @@ editor.
   hash.
 - Table, default sort by priority (P0 first, missing last), then status in project order,
   then name; any column sortable:
-  `Priority | Workflow | Project | Status | Epic | Desktop | Web | Outputs | Indicators | CI | Open work`
-  `Epic` is a link to the epic issue; `Open work` is open sub-issues + repo open issues.
-- Badges in the Workflow cell for `metadata_missing`, `spec_missing`, `archived`, no epic, and
-  `errors`. Status, priority, and CI colour-coded.
-- Row click expands a drill-down (one open at a time; open id in the URL hash): epic link with
-  its state, size, and sub-issue progress; description; maintainers; each deliverable with its
-  components (type, description, indicators); last CI run link; "Edit in registry" link; then
-  two issue lists, each item linking to GitHub: **Tracked work** (the epic's sub-issues,
-  open first, with repo, type, and state) and **Repo issues** (the repo's open issues with
-  number, title, labels, age, assignee).
+  `Priority | Workflow | Project | Status | Epic | Desktop | Web | Outputs | CI | Open work`
+  `Epic` is a link to the epic issue; `Open work` is open sub-issues + repo open issues; the
+  `Outputs` cell lists each output's name as a chip, in declared order (title = type).
+- Badges in the Workflow cell for `metadata_missing`, `spec_missing`, `archived`, no epic,
+  `unknown_indicators`, and `errors`. Status, priority, and CI colour-coded.
+- Row click opens a modal (open id in the URL hash): epic link with its state, size, and
+  sub-issue progress; description (with its `metadata_source` when set); maintainers; the
+  output list (name, type, description, indicator chips); last CI run link; "Edit in registry"
+  link; then two issue lists, each item linking to GitHub: **Tracked work** (the epic's
+  sub-issues, open first, with repo, type, and state) and **Repo issues** (the repo's open
+  issues with number, title, labels, age, assignee).
 
 **Outputs tab**
-- One row per component across the fleet:
-  `Workflow | Deliverable | Deliverable type | Component | Component type | Description | Indicators`
-- Filters: indicator, component type, deliverable type, project; text search over
-  component name and description. Clicking the workflow cell jumps to its drill-down.
+- One row per output across the fleet: `Workflow | Output | Type | Description | Indicators`
+- Filters: indicator, type, project; text search over output name and description. Clicking
+  the workflow cell opens its modal.
 
 **Unregistered panel**: collapsed section at the bottom listing `unregistered` repos with a
 link to each and to `registry.yaml`.
@@ -256,7 +256,7 @@ link to each and to `registry.yaml`.
   keyed on URL. Cases: registry validation (duplicate id, bad epic URL, neither repo nor
   epic); epic parsing (status/priority from project #9 preferred over another project,
   sub-issue pagination, non-Workflow type recorded as error, missing epic yields null); flat
-  and nested outputs normalise identically; private repo → excluded from the snapshot even when
+  and nested-components outputs flatten identically; private repo → excluded from the snapshot even when
   in the catalog; missing `ecoscope-web` branch → null web version; unknown indicator flagged;
   alias mapping; 404 on one repo isolates to that record; issues exclude pull requests;
   priority/status sort order helper.

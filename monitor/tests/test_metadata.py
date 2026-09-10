@@ -79,7 +79,27 @@ def test_normalize_indicators_handles_strings_dicts_case_and_unknowns(vocab):
     assert unknown == ["elephant density"]
 
 
-def test_normalize_outputs_nested_shape(vocab):
+def test_normalize_outputs_flat_shape_preserved_in_order(vocab):
+    meta = {
+        "outputs": [
+            {"name": "NDVI Dashboard", "type": "dashboard", "description": "d", "indicators": [{"name": "NDVI"}]},
+            {"name": "NDVI Map", "type": "map", "description": "m", "indicators": [{"name": "NDVI"}]},
+            {"name": "NDVI Trend", "type": "plot", "description": "t", "indicators": [{"name": "vegetation index"}]},
+            {"name": "NDVI Data", "type": "file", "description": "", "indicators": []},
+        ]
+    }
+    outputs, indicators, unknown = normalize_outputs(meta, "X", vocab)
+    assert outputs == [
+        {"name": "NDVI Dashboard", "type": "dashboard", "description": "d", "indicators": ["ndvi"]},
+        {"name": "NDVI Map", "type": "map", "description": "m", "indicators": ["ndvi"]},
+        {"name": "NDVI Trend", "type": "plot", "description": "t", "indicators": ["ndvi"]},
+        {"name": "NDVI Data", "type": "file", "description": "", "indicators": []},
+    ]
+    assert indicators == ["ndvi"]
+    assert unknown == []
+
+
+def test_normalize_outputs_nested_components_flattened_after_parent(vocab):
     meta = {
         "outputs": [
             {
@@ -90,47 +110,19 @@ def test_normalize_outputs_nested_shape(vocab):
                     {"name": "NDVI Map", "type": "map", "description": "m", "indicators": ["NDVI"]},
                     {"name": "Trend", "type": "plot", "indicators": [{"name": "vegetation index"}]},
                 ],
-            }
+            },
+            {"name": "NDVI Data", "type": "file"},
         ]
     }
     outputs, indicators, unknown = normalize_outputs(meta, "X", vocab)
     assert outputs == [
-        {
-            "name": "NDVI Dashboard",
-            "type": "dashboard",
-            "description": "d",
-            "components": [
-                {"name": "NDVI Map", "type": "map", "description": "m", "indicators": ["ndvi"]},
-                {"name": "Trend", "type": "plot", "description": "", "indicators": ["ndvi"]},
-            ],
-        }
+        {"name": "NDVI Dashboard", "type": "dashboard", "description": "d", "indicators": []},
+        {"name": "NDVI Map", "type": "map", "description": "m", "indicators": ["ndvi"]},
+        {"name": "Trend", "type": "plot", "description": "", "indicators": ["ndvi"]},
+        {"name": "NDVI Data", "type": "file", "description": "", "indicators": []},
     ]
     assert indicators == ["ndvi"]
     assert unknown == []
-
-
-def test_normalize_outputs_flat_shape_becomes_implicit_dashboard(vocab):
-    meta = {
-        "outputs": [
-            {"name": "NDVI Dashboard", "type": "dashboard", "indicators": [{"name": "NDVI"}]},
-            {"name": "NDVI Map", "type": "map", "description": "m", "indicators": [{"name": "NDVI"}]},
-            {"name": "NDVI Data", "type": "file", "indicators": [{"name": "NDVI"}]},
-        ]
-    }
-    outputs, indicators, unknown = normalize_outputs(meta, "NDVI Workflow", vocab)
-    assert [o["type"] for o in outputs] == ["dashboard", "file"]
-    dashboard = outputs[0]
-    assert dashboard["name"] == "NDVI Dashboard"
-    assert dashboard["components"] == [{"name": "NDVI Map", "type": "map", "description": "m", "indicators": ["ndvi"]}]
-    assert outputs[1]["components"] == []
-    assert indicators == ["ndvi"]
-
-
-def test_normalize_outputs_flat_without_dashboard_entry_names_it_after_workflow(vocab):
-    meta = {"outputs": [{"name": "Map", "type": "map", "indicators": ["ndvi"]}]}
-    outputs, _, _ = normalize_outputs(meta, "NDVI Workflow", vocab)
-    assert outputs[0]["name"] == "NDVI Workflow Dashboard"
-    assert outputs[0]["type"] == "dashboard"
 
 
 def test_normalize_outputs_unknown_types_are_kept_and_flagged(vocab):

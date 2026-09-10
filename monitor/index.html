@@ -34,7 +34,6 @@
   #wf-table th { cursor: pointer; user-select: none; }
   th.sorted::after { content: " ▲"; } th.sorted.desc::after { content: " ▼"; }
   tr.row { cursor: pointer; } tr.row:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
-  tr.detail td { background: color-mix(in srgb, var(--chip) 60%, transparent); cursor: default; }
   .chip { display: inline-block; padding: 1px 7px; border-radius: 999px; background: var(--chip); font-size: 12px; margin: 1px 2px 1px 0; white-space: nowrap; }
   .chip.ok { color: var(--ok); } .chip.warn { color: var(--warn); } .chip.bad { color: var(--bad); } .chip.info { color: var(--info); }
   .badge { font-size: 11px; color: var(--warn); margin-left: 4px; }
@@ -48,6 +47,15 @@
   details.unreg { margin-top: 16px; }
   details.unreg summary { cursor: pointer; color: var(--muted); }
   .count { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+  #modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); align-items: center; justify-content: center; padding: 16px; z-index: 100; }
+  #modal:not([hidden]) { display: flex; }
+  .modal-card { background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 10px;
+                width: 100%; max-width: 900px; max-height: 90vh; overflow: auto; padding: 20px; position: relative; }
+  .modal-card h2 { margin: 0 24px 12px 0; font-size: 18px; }
+  .modal-close { position: absolute; top: 10px; right: 10px; background: none; border: 0; font-size: 22px; line-height: 1;
+                 cursor: pointer; color: var(--muted); padding: 4px 8px; }
+  .modal-close:hover { color: var(--fg); }
+  body.modal-open { overflow: hidden; }
   @media (max-width: 640px) { header h1 { font-size: 18px; } }
 </style>
 </head>
@@ -85,25 +93,32 @@
   <div class="tablewrap"><table id="wf-table"><thead><tr>
     <th data-key="priority">Priority</th><th data-key="name">Workflow</th><th data-key="project">Project</th>
     <th data-key="status">Status</th><th data-key="epic">Epic</th><th data-key="desktop">Desktop</th><th data-key="web">Web</th>
-    <th data-key="outputs">Outputs</th><th data-key="indicators">Indicators</th><th data-key="ci">CI</th><th data-key="open">Open work</th>
+    <th data-key="outputs">Outputs</th><th data-key="ci">CI</th><th data-key="open">Open work</th>
   </tr></thead><tbody></tbody></table></div>
 </section>
 
 <section id="tab-outputs" hidden>
   <div class="filters">
-    <input id="out-q" type="search" placeholder="Search component name or description…">
+    <input id="out-q" type="search" placeholder="Search output name or description…">
     <select id="out-indicator"><option value="">All indicators</option></select>
-    <select id="out-ctype"><option value="">All component types</option></select>
-    <select id="out-dtype"><option value="">All deliverable types</option></select>
+    <select id="out-otype"><option value="">All types</option></select>
     <select id="out-project"><option value="">All projects</option></select>
   </div>
   <div class="count" id="out-count"></div>
   <div class="tablewrap"><table id="out-table"><thead><tr>
-    <th>Workflow</th><th>Deliverable</th><th>Deliverable type</th><th>Component</th><th>Component type</th><th>Description</th><th>Indicators</th>
+    <th>Workflow</th><th>Output</th><th>Type</th><th>Description</th><th>Indicators</th>
   </tr></thead><tbody></tbody></table></div>
 </section>
 
 <details class="unreg" id="unreg"><summary>Unregistered workflow repos</summary><ul></ul></details>
+
+<div id="modal" hidden>
+  <div class="modal-card">
+    <button class="modal-close" id="modal-close" aria-label="Close">×</button>
+    <h2 id="modal-title"></h2>
+    <div id="modal-body"></div>
+  </div>
+</div>
 
 <script>
 (function () {
@@ -114,6 +129,7 @@
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const link = (href, text) => href ? `<a href="${esc(href)}" target="_blank" rel="noopener">${esc(text)}</a>` : esc(text);
   const chip = (text, cls = '') => text ? `<span class="chip ${cls}">${esc(text)}</span>` : '';
+  const chipTitled = (text, title, cls = '') => text ? `<span class="chip ${cls}" title="${esc(title)}">${esc(text)}</span>` : '';
   const state = { workflows: [], unregistered: [], sort: { key: 'priority', desc: false }, open: null };
 
   function readHash() {
@@ -130,8 +146,8 @@
       tab: $('nav.tabs button.active').dataset.tab,
       q: $('#wf-q').value, project: $('#wf-project').value, status: $('#wf-status').value,
       priority: $('#wf-priority').value, otype: $('#wf-otype').value, avail: $('#wf-avail').value,
-      oq: $('#out-q').value, oind: $('#out-indicator').value, octype: $('#out-ctype').value,
-      odtype: $('#out-dtype').value, oproject: $('#out-project').value,
+      oq: $('#out-q').value, oind: $('#out-indicator').value, ootype: $('#out-otype').value,
+      oproject: $('#out-project').value,
       open: state.open || '',
     };
   }
@@ -174,7 +190,6 @@
       case 'desktop': return [w.desktop_version || 'zz'];
       case 'web': return [w.web_version || 'zz'];
       case 'outputs': return [w.outputs.map(o => o.type).join(',')];
-      case 'indicators': return [w.indicators.join(',')];
       case 'ci': return [w.ci_status || 'zz'];
       case 'open': return [openWork(w)];
       default: return [''];
@@ -205,10 +220,10 @@
     const rows = filteredWorkflows();
     $('#wf-count').textContent = `${rows.length} of ${state.workflows.length} workflows`;
     const tbody = $('#wf-table tbody');
-    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="11" class="empty">No workflows match.</td></tr>'; return; }
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="10" class="empty">No workflows match.</td></tr>'; return; }
     tbody.innerHTML = rows.map(w => {
       const e = w.epic;
-      const row = `<tr class="row" data-id="${esc(w.id)}">
+      return `<tr class="row" data-id="${esc(w.id)}">
         <td>${chip(e?.priority, priorityClass(e?.priority)) || '<span class="muted">—</span>'}</td>
         <td><strong>${esc(w.name)}</strong> <span class="muted">${esc(w.id !== w.name ? w.id : '')}</span>${badges(w)}</td>
         <td>${chip(projectOf(w)) || '<span class="muted">—</span>'}</td>
@@ -216,12 +231,10 @@
         <td>${e ? link(e.url, '#' + e.url.split('/').pop()) + (e.state === 'CLOSED' ? ' <span class="muted">closed</span>' : '') : '<span class="muted">—</span>'}</td>
         <td>${w.desktop_version ? chip('v' + w.desktop_version, 'ok') : '<span class="muted">—</span>'}</td>
         <td>${w.web_version ? chip('v' + w.web_version, 'ok') : '<span class="muted">—</span>'}</td>
-        <td>${uniq(w.outputs.map(o => o.type)).map(t => chip(t)).join('') || '<span class="muted">—</span>'}</td>
-        <td>${w.indicators.map(i => chip(i, 'info')).join('') || '<span class="muted">—</span>'}</td>
+        <td>${w.outputs.map(o => chipTitled(o.name, o.type)).join('') || '<span class="muted">—</span>'}</td>
         <td>${w.ci_status && w.ci_url ? `<a class="chip ${ciClass(w.ci_status)}" href="${esc(w.ci_url)}" target="_blank" rel="noopener">${esc(w.ci_status)}</a>` : w.ci_status ? chip(w.ci_status, ciClass(w.ci_status)) : '<span class="muted">—</span>'}</td>
         <td>${openWork(w)}</td>
       </tr>`;
-      return row + (state.open === w.id ? `<tr class="detail"><td colspan="11">${renderDetail(w)}</td></tr>` : '');
     }).join('');
     for (const th of document.querySelectorAll('#wf-table th')) {
       th.classList.toggle('sorted', th.dataset.key === state.sort.key);
@@ -240,8 +253,7 @@
     const epicBlock = e ? `<p>${link(e.url, e.title)} <span class="muted">· ${esc(e.state.toLowerCase())} · ${esc(e.type || 'untyped')}${e.size ? ' · size ' + esc(e.size) : ''} · ${e.sub_issues_completed}/${e.sub_issues_total} sub-issues done</span></p>` : '<p class="muted">No epic linked.</p>';
     const repoLink = w.repo ? link('https://github.com/' + w.repo, w.repo) : '<span class="muted">no repo</span>';
     const maint = w.maintainers.map(m => `${esc(m.name || m.email || '?')}${m.role ? ' <span class="muted">(' + esc(m.role) + ')</span>' : ''}`).join(', ');
-    const outputs = w.outputs.map(o => `<li><strong>${esc(o.name)}</strong> ${chip(o.type)}${o.description ? ' <span class="muted">' + esc(o.description) + '</span>' : ''}
-      ${o.components.length ? '<ul>' + o.components.map(c => `<li>${esc(c.name)} ${chip(c.type)} ${c.indicators.map(i => chip(i, 'info')).join('')}${c.description ? ' <span class="muted">' + esc(c.description) + '</span>' : ''}</li>`).join('') + '</ul>' : ''}</li>`).join('');
+    const outputs = w.outputs.map(o => `<li><strong>${esc(o.name)}</strong> — ${chip(o.type)}${o.description ? ' — <span class="muted">' + esc(o.description) + '</span>' : ''} ${o.indicators.map(i => chip(i, 'info')).join('')}</li>`).join('');
     const tracked = subs.map(s => `<li>${link(s.url, s.title)} <span class="muted">· ${esc(s.repo)} · ${esc(s.type || '')} · ${esc(s.state.toLowerCase())}</span></li>`).join('');
     const issues = w.issues.map(i => `<li>${link(i.url, '#' + i.number + ' ' + i.title)} ${i.labels.map(l => chip(l)).join('')} <span class="muted">· ${age(i.created_at)}${i.assignee ? ' · ' + esc(i.assignee) : ''}</span></li>`).join('');
     const errors = w.errors.length ? `<div><h4>Errors</h4><ul>${w.errors.map(x => `<li class="badge bad">${esc(x)}</li>`).join('')}</ul></div>` : '';
@@ -254,29 +266,27 @@
     </div>`;
   }
 
-  function componentRows() {
+  function outputRows() {
     const rows = [];
-    for (const w of state.workflows) for (const o of w.outputs) for (const c of o.components)
-      rows.push({ w, o, c });
+    for (const w of state.workflows) for (const o of w.outputs) rows.push({ w, o });
     return rows;
   }
   function renderOutputs() {
     const f = currentFilters(); const q = f.oq.trim().toLowerCase();
-    const all = componentRows();
-    const rows = all.filter(({ w, o, c }) => {
-      if (q && !(c.name + ' ' + c.description).toLowerCase().includes(q)) return false;
-      if (f.oind && !c.indicators.includes(f.oind)) return false;
-      if (f.octype && c.type !== f.octype) return false;
-      if (f.odtype && o.type !== f.odtype) return false;
+    const all = outputRows();
+    const rows = all.filter(({ w, o }) => {
+      if (q && !(o.name + ' ' + o.description).toLowerCase().includes(q)) return false;
+      if (f.oind && !o.indicators.includes(f.oind)) return false;
+      if (f.ootype && o.type !== f.ootype) return false;
       if (f.oproject && projectOf(w) !== f.oproject) return false;
       return true;
     });
-    $('#out-count').textContent = `${rows.length} of ${all.length} components`;
+    $('#out-count').textContent = `${rows.length} of ${all.length} outputs`;
     const tbody = $('#out-table tbody');
-    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="7" class="empty">No components match.</td></tr>'; return; }
-    tbody.innerHTML = rows.map(({ w, o, c }) => `<tr>
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">No outputs match.</td></tr>'; return; }
+    tbody.innerHTML = rows.map(({ w, o }) => `<tr>
       <td><a href="#" data-open="${esc(w.id)}">${esc(w.name)}</a></td><td>${esc(o.name)}</td><td>${chip(o.type)}</td>
-      <td>${esc(c.name)}</td><td>${chip(c.type)}</td><td>${esc(c.description)}</td><td>${c.indicators.map(i => chip(i, 'info')).join('')}</td>
+      <td>${esc(o.description)}</td><td>${o.indicators.map(i => chip(i, 'info')).join('')}</td>
     </tr>`).join('');
   }
 
@@ -291,7 +301,21 @@
     $('#tab-workflows').hidden = name !== 'workflows';
     $('#tab-outputs').hidden = name !== 'outputs';
   }
-  function renderAll() { renderWorkflows(); renderOutputs(); writeHash(currentFilters()); }
+  function renderModal() {
+    const modal = $('#modal');
+    const w = state.open ? state.workflows.find(x => x.id === state.open) : null;
+    if (!w) {
+      modal.hidden = true;
+      document.body.classList.remove('modal-open');
+      return;
+    }
+    $('#modal-title').textContent = w.name;
+    $('#modal-body').innerHTML = renderDetail(w);
+    modal.hidden = false;
+    document.body.classList.add('modal-open');
+  }
+  function closeModal() { state.open = null; renderAll(); }
+  function renderAll() { renderWorkflows(); renderOutputs(); renderModal(); writeHash(currentFilters()); }
 
   function init(data) {
     state.workflows = data.workflows || [];
@@ -314,13 +338,12 @@
     fillSelect($('#wf-status'), uniq(state.workflows.map(w => w.epic?.status)).sort((a, b) => rank(STATUS_ORDER, a) - rank(STATUS_ORDER, b)));
     fillSelect($('#wf-priority'), uniq(state.workflows.map(w => w.epic?.priority)).sort());
     fillSelect($('#wf-otype'), uniq(state.workflows.flatMap(w => w.outputs.map(o => o.type))).sort());
-    fillSelect($('#out-dtype'), uniq(state.workflows.flatMap(w => w.outputs.map(o => o.type))).sort());
-    fillSelect($('#out-ctype'), uniq(componentRows().map(r => r.c.type)).sort());
+    fillSelect($('#out-otype'), uniq(outputRows().map(r => r.o.type)).sort());
     fillSelect($('#out-indicator'), uniq(state.workflows.flatMap(w => w.indicators)).sort());
 
     const h = readHash();
     const map = { q: '#wf-q', project: '#wf-project', status: '#wf-status', priority: '#wf-priority', otype: '#wf-otype', avail: '#wf-avail',
-                  oq: '#out-q', oind: '#out-indicator', octype: '#out-ctype', odtype: '#out-dtype', oproject: '#out-project' };
+                  oq: '#out-q', oind: '#out-indicator', ootype: '#out-otype', oproject: '#out-project' };
     for (const [k, sel] of Object.entries(map)) if (h[k] != null) $(sel).value = h[k];
     state.open = h.open || null;
     showTab(h.tab === 'outputs' ? 'outputs' : 'workflows');
@@ -333,13 +356,15 @@
     $('#wf-table tbody').addEventListener('click', ev => {
       if (ev.target.closest('a')) return;
       const tr = ev.target.closest('tr.row'); if (!tr) return;
-      state.open = state.open === tr.dataset.id ? null : tr.dataset.id; renderAll();
+      state.open = tr.dataset.id; renderAll();
     });
     $('#out-table tbody').addEventListener('click', ev => {
       const a = ev.target.closest('a[data-open]'); if (!a) return;
-      ev.preventDefault(); state.open = a.dataset.open; showTab('workflows'); renderAll();
-      document.querySelector(`tr.row[data-id="${CSS.escape(state.open)}"]`)?.scrollIntoView({ block: 'center' });
+      ev.preventDefault(); state.open = a.dataset.open; renderAll();
     });
+    $('#modal').addEventListener('click', ev => { if (ev.target.id === 'modal') closeModal(); });
+    $('#modal-close').addEventListener('click', closeModal);
+    document.addEventListener('keydown', ev => { if (ev.key === 'Escape' && state.open) closeModal(); });
     renderUnregistered();
     renderAll();
   }
@@ -350,8 +375,8 @@
     .catch(err => {
       $('#generated').textContent = 'failed to load data.json: ' + err.message;
       $('#generated').classList.add('stale');
-      $('#wf-table tbody').innerHTML = '<tr><td colspan="11" class="empty">Could not load the snapshot. Check the latest monitor run in Actions.</td></tr>';
-      $('#out-table tbody').innerHTML = '<tr><td colspan="7" class="empty">Could not load the snapshot.</td></tr>';
+      $('#wf-table tbody').innerHTML = '<tr><td colspan="10" class="empty">Could not load the snapshot. Check the latest monitor run in Actions.</td></tr>';
+      $('#out-table tbody').innerHTML = '<tr><td colspan="5" class="empty">Could not load the snapshot.</td></tr>';
       $('#wf-count').textContent = '';
       $('#out-count').textContent = '';
       $('#unreg summary').textContent = 'Unregistered workflow repos (—)';
