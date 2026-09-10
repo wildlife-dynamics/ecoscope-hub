@@ -303,16 +303,16 @@
     const repoLink = w.repo ? link('https://github.com/' + w.repo, w.repo) : '<span class="muted">no repo</span>';
     const maint = w.maintainers.map(m => `${esc(m.name || m.email || '?')}${m.role ? ' <span class="muted">(' + esc(m.role) + ')</span>' : ''}`).join(', ');
     const outputs = w.outputs.map(o => `<li><strong>${esc(o.name)}</strong> — ${chip(o.type)}${o.description ? ' — <span class="muted">' + esc(o.description) + '</span>' : ''} ${o.indicators.map(i => chip(i, 'info')).join('')}</li>`).join('');
-    const libs = w.task_libraries.map(t => `<li>${esc(t.name)} <span class="muted">${esc(t.version)}${t.channel ? ' · ' + esc(t.channel) : ''}</span></li>`).join('');
-    const build = `<p>${w.wt_compiler_version ? 'wt-compiler ' + chip(w.wt_compiler_version) : '<span class="muted">wt-compiler version unknown</span>'}</p>${libs ? '<ul>' + libs + '</ul>' : ''}`;
+    const libs = w.task_libraries.map(t => `<li>${esc(t.name)} <span class="muted">${esc(t.version)}</span></li>`).join('');
+    const build = `<div><h4>Build</h4><p>${w.wt_compiler_version ? 'wt-compiler ' + chip(w.wt_compiler_version) : '<span class="muted">wt-compiler version unknown</span>'}</p>${libs ? '<ul>' + libs + '</ul>' : ''}</div>`;
     const issues = w.issues.map(i => `<li>${link(i.url, '#' + i.number + ' ' + i.title)} ${i.labels.map(l => chip(l)).join('')} <span class="muted">· ${age(i.created_at)}${i.assignee ? ' · ' + esc(i.assignee) : ''}</span></li>`).join('');
     const errors = w.errors.length ? `<div><h4>Errors</h4><ul>${w.errors.map(x => `<li class="badge bad">${esc(x)}</li>`).join('')}</ul></div>` : '';
     return `<div class="detail">
       <div><h4>Repo</h4><p>${repoLink}${w.ci_url ? ' · ' + link(w.ci_url, 'last CI run') : ''} · <a href="https://github.com/wildlife-dynamics/ecoscope-hub/edit/main/monitor/registry.yaml" target="_blank" rel="noopener">edit in registry</a></p>
-        <h4>Build</h4>${build}
         ${w.description ? '<h4>Description</h4><p>' + esc(w.description) + (w.metadata_source ? ' <span class="muted">(' + esc(w.metadata_source) + ')</span>' : '') + '</p>' : ''}${maint ? '<h4>Maintainers</h4><p>' + maint + '</p>' : ''}<h4>Epic</h4>${epicBlock}</div>
       <div><h4>Outputs</h4>${outputs ? '<ul>' + outputs + '</ul>' : '<p class="muted">None declared.</p>'}</div>
       <div><h4>Repo issues (${w.issues.length})</h4>${issues ? '<ul>' + issues + '</ul>' : '<p class="muted">None open.</p>'}${errors}</div>
+      ${build}
     </div>`;
   }
 
