@@ -3,7 +3,7 @@ import json
 import sys
 from pathlib import Path
 
-from gh import GitHubClient, NotFound
+from gh import GitHubClient, GitHubError, NotFound
 from metadata import RegistryError, load_registry
 
 HERE = Path(__file__).parent
@@ -40,13 +40,31 @@ def diff(entries, org_repos, spec_flags):
 
 
 def add_stubs(registry_path, missing):
+    import re
+    import yaml
+
     path = Path(registry_path)
-    text = path.read_text()
+    original_text = path.read_text()
+    text = original_text
+
+    text = re.sub(r"^workflows:\s*\[\]\s*$", "workflows:", text, flags=re.MULTILINE)
+
     if not text.endswith("\n"):
         text += "\n"
     for item in missing:
         name = item["repo"].split("/", 1)[1]
         text += f"  - id: {name}\n    repo: {item['repo']}\n"
+
+    try:
+        data = yaml.safe_load(text)
+        workflows = data.get("workflows", [])
+        if not isinstance(workflows, list) or len(workflows) != len(missing) + len(yaml.safe_load(original_text).get("workflows", [])):
+            path.write_text(original_text)
+            raise RegistryError(f"could not append stubs to {path}")
+    except (yaml.YAMLError, KeyError, TypeError):
+        path.write_text(original_text)
+        raise RegistryError(f"could not append stubs to {path}")
+
     path.write_text(text)
     return len(missing)
 
@@ -66,7 +84,13 @@ def main(argv=None):
         return 2
     client = GitHubClient()
     org_repos = list_org_repos(client, args.org)
-    spec_flags = {r["repo"]: has_spec(client, r["repo"]) for r in org_repos}
+    spec_flags = {}
+    for r in org_repos:
+        try:
+            spec_flags[r["repo"]] = has_spec(client, r["repo"])
+        except GitHubError as e:
+            print(f"warning: could not read {r['repo']}: {e}", file=sys.stderr)
+            spec_flags[r["repo"]] = False
     result = diff(entries, org_repos, spec_flags)
 
     if args.json:

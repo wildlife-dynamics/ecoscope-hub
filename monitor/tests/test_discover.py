@@ -60,3 +60,41 @@ def test_main_json_prints_missing(client, session, tmp_path, capsys, monkeypatch
     registry.write_text("workflows:\n  - id: a\n    repo: wd/a\n")
     assert main(["--registry", str(registry), "--org", "wd", "--json"]) == 0
     assert json.loads(capsys.readouterr().out) == [{"repo": "wd/b", "visibility": "public"}]
+
+
+def test_main_warns_and_continues_on_unreadable_repo(client, session, tmp_path, capsys, monkeypatch):
+    import discover as mod
+
+    real = mod.GitHubClient
+    monkeypatch.setattr(mod, "GitHubClient", lambda: real(token="t", session=session))
+    session.add("GET", f"{API}/orgs/wd/repos", FakeResponse(200, [{"full_name": "wd/a", "private": False, "archived": False}, {"full_name": "wd/b", "private": False, "archived": False}]))
+    session.add("GET", f"{API}/repos/wd/a/contents/spec.yaml", FakeResponse(403, {"message": "forbidden"}))
+    session.add("GET", f"{API}/repos/wd/b/contents/spec.yaml", FakeResponse(200, {}))
+    registry = tmp_path / "registry.yaml"
+    registry.write_text("workflows: []\n")
+    assert main(["--registry", str(registry), "--org", "wd", "--json"]) == 0
+    out, err = capsys.readouterr()
+    assert json.loads(out) == [{"repo": "wd/b", "visibility": "public"}]
+    assert "warning: could not read" in err
+
+
+def test_add_stubs_handles_empty_flow_list(tmp_path):
+    path = tmp_path / "registry.yaml"
+    path.write_text("workflows: []\n")
+    n = add_stubs(path, [{"repo": "wd/new-thing", "visibility": "public"}])
+    assert n == 1
+    data = yaml.safe_load(path.read_text())
+    assert data["workflows"] == [{"id": "new-thing", "repo": "wd/new-thing"}]
+
+
+def test_add_stubs_rolls_back_on_unparseable_result(tmp_path):
+    from metadata import RegistryError
+
+    path = tmp_path / "registry.yaml"
+    path.write_text("workflows: {a: 1}\n")
+    try:
+        add_stubs(path, [{"repo": "wd/new", "visibility": "public"}])
+        assert False, "should raise RegistryError"
+    except RegistryError:
+        pass
+    assert path.read_text() == "workflows: {a: 1}\n"
