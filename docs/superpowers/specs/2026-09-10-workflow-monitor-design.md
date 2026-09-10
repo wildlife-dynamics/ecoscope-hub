@@ -221,6 +221,13 @@ horizontally inside their container.
 Actions page (rebuild), to the Wildlife Dynamics project, and to `registry.yaml` in GitHub's
 editor.
 
+**Summary**: a two-row figures area above the tabs, computed over the whole fleet regardless
+of active filters. Row one is four stat tiles — workflows available, unique output names, on
+Desktop, on Web. Row two holds two charts: a workflows-by-Project donut (legend, per-slice
+tooltips, smallest slices folded into "Other" past 7 distinct projects) and a workflows-by-
+priority bar chart (`P0`..`P3` plus "No priority", bars coloured to match the table's priority
+chips).
+
 **Tabs**: Workflows, Outputs.
 
 **Workflows tab**
@@ -244,8 +251,9 @@ editor.
 
 **Outputs tab**
 - One row per output across the fleet: `Workflow | Output | Type | Description | Indicators`
-- Filters: indicator, type, project; text search over output name and description. Clicking
-  the workflow cell opens its modal.
+- Filters: indicator, type; text search over output name and description. No project filter
+  here (the Workflows tab's project filter already covers it). Clicking the workflow cell
+  opens its modal.
 
 **Unregistered panel**: collapsed section at the bottom listing `unregistered` repos with a
 link to each and to `registry.yaml`.
