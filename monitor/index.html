@@ -51,14 +51,15 @@
   details.unreg { margin-top: 16px; }
   details.unreg summary { cursor: pointer; color: var(--muted); }
   .count { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
-  .stats { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
-  .stats-row { display: flex; flex-wrap: wrap; gap: 12px; }
-  .stat-tile, .stat-chart { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; }
-  .stat-tile { min-width: 140px; }
+  .stats { margin-bottom: 16px; }
+  .stats-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+  .stat-tile, .stat-chart { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; min-width: 0; }
   .stat-value { font-size: 28px; font-weight: 700; line-height: 1; font-variant-numeric: normal; }
   .stat-label { color: var(--muted); font-size: 12px; margin-top: 4px; text-transform: uppercase; letter-spacing: .03em; }
-  .stat-chart { display: flex; align-items: center; gap: 16px; flex: 1 1 280px; min-width: 260px; }
+  .stat-chart { display: flex; align-items: center; gap: 16px; grid-column: span 3; }
   .stat-chart h3 { margin: 0 0 2px; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); font-weight: 600; }
+  @media (max-width: 900px) { .stats-grid { grid-template-columns: repeat(3, 1fr); } .stat-chart { grid-column: span 3; } }
+  @media (max-width: 560px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } .stat-chart { grid-column: span 2; } }
   .donut { flex: 0 0 auto; width: 92px; height: 92px; }
   .donut-col { flex: 1 1 auto; min-width: 0; }
   .donut-legend { list-style: none; margin: 4px 0 0; padding: 0; font-size: 12px; }
@@ -95,21 +96,21 @@
 </header>
 
 <div class="stats" id="stats">
-  <div class="stats-row stats-numbers">
-    <div class="stat-tile"><div class="stat-value" id="stat-workflows">—</div><div class="stat-label">Workflows available</div></div>
+  <div class="stats-grid">
+    <div class="stat-tile"><div class="stat-value" id="stat-workflows">—</div><div class="stat-label">Total workflow templates</div></div>
     <div class="stat-tile"><div class="stat-value" id="stat-outputs">—</div><div class="stat-label">Unique outputs</div></div>
     <div class="stat-tile"><div class="stat-value" id="stat-desktop">—</div><div class="stat-label">On Desktop</div></div>
     <div class="stat-tile"><div class="stat-value" id="stat-web">—</div><div class="stat-label">On Web</div></div>
-  </div>
-  <div class="stats-row stats-charts">
-    <div class="stat-chart">
+    <div class="stat-tile"><div class="stat-value" id="stat-inprogress">—</div><div class="stat-label">In progress</div></div>
+    <div class="stat-tile"><div class="stat-value" id="stat-inreview">—</div><div class="stat-label">In review</div></div>
+    <div class="stat-chart chart-span">
       <svg class="donut" id="org-donut" viewBox="0 0 100 100" role="img" aria-label="Workflows by project"></svg>
       <div class="donut-col">
         <h3>Workflows by project</h3>
         <ul class="donut-legend" id="org-legend"></ul>
       </div>
     </div>
-    <div class="stat-chart">
+    <div class="stat-chart chart-span">
       <div class="donut-col">
         <h3>Workflows by priority</h3>
         <div class="bars" id="priority-bars"></div>
@@ -342,6 +343,8 @@
     $('#stat-outputs').textContent = uniq(state.workflows.flatMap(w => w.outputs.map(o => o.name))).length;
     $('#stat-desktop').textContent = state.workflows.filter(w => w.desktop_version).length;
     $('#stat-web').textContent = state.workflows.filter(w => w.web_version).length;
+    $('#stat-inprogress').textContent = state.workflows.filter(w => w.epic?.status === 'In progress').length;
+    $('#stat-inreview').textContent = state.workflows.filter(w => w.epic?.status === 'In review').length;
 
     const counts = new Map();
     for (const w of state.workflows) {
