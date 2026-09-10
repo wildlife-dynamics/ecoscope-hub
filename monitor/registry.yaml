@@ -1,0 +1,47 @@
+# One entry per ecoscope workflow. Status, priority, and projects are managed on the epic
+# issue in GitHub Projects (https://github.com/orgs/wildlife-dynamics/projects/9), not here.
+workflows:
+  - id: wt-ndvi
+    repo: wildlife-dynamics/wt-ndvi
+    epic: https://github.com/wildlife-dynamics/ndvi/issues/22
+  - id: wt-download-events
+    repo: wildlife-dynamics/wt-download-events
+    epic: https://github.com/wildlife-dynamics/wt-download-events/issues/33
+  - id: wt-download-patrols
+    repo: wildlife-dynamics/wt-download-patrols
+    epic: https://github.com/wildlife-dynamics/wt-download-patrols/issues/18
+  - id: wt-download-subject-tracks
+    repo: wildlife-dynamics/wt-download-subject-tracks
+    epic: https://github.com/wildlife-dynamics/wt-download-subject-tracks/issues/21
+  - id: wt-hydrological-monitoring
+    repo: wildlife-dynamics/wt-hydrological-monitoring
+  - id: patrol-effort-table
+    repo: wildlife-dynamics/patrol-effort-table
+    epic: https://github.com/wildlife-dynamics/patrol-effort-table/issues/1
+  - id: mt-patrols
+    repo: wildlife-dynamics/mt-patrols
+    epic: https://github.com/wildlife-dynamics/mt-patrols/issues/4
+  - id: patrol-encounter-rate-map
+    repo: wildlife-dynamics/patrol-encounter-rate-map
+    epic: https://github.com/wildlife-dynamics/patrol-encounter-rate-map/issues/3
+  - id: namibia
+    repo: wildlife-dynamics/namibia
+    epic: https://github.com/wildlife-dynamics/namibia/issues/164
+  - id: curacao-turtle-monitoring
+    repo: wildlife-dynamics/curacao-turtle_monitoring
+    epic: https://github.com/wildlife-dynamics/curacao-turtle_monitoring/issues/1
+  - id: apn-exotic-animal-control
+    repo: wildlife-dynamics/APN
+    epic: https://github.com/wildlife-dynamics/APN/issues/180
+  - id: apn-weapon-use-report
+    repo: wildlife-dynamics/APN
+    epic: https://github.com/wildlife-dynamics/APN/issues/164
+  - id: dr-whale-sightings
+    repo: wildlife-dynamics/Dominican.Republic-Whale_Sighting
+    epic: https://github.com/wildlife-dynamics/Dominican.Republic-Whale_Sighting/issues/1
+  - id: latam-patrol-summary
+    repo: wildlife-dynamics/latam-patrol_summary
+    epic: https://github.com/wildlife-dynamics/latam-patrol_summary/issues/2
+  - id: eden-community-engagement
+    repo: wildlife-dynamics/eden
+    epic: https://github.com/wildlife-dynamics/eden/issues/1
