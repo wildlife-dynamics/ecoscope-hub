@@ -10,6 +10,7 @@ from gh import GitHubClient, GitHubError, NotFound
 from metadata import RegistryError, load_registry
 
 HERE = Path(__file__).parent
+DEFAULT_ORGS = ["wildlife-dynamics", "ecoscope-platform-workflows-releases"]
 
 
 def list_org_repos(client, org):
@@ -72,7 +73,7 @@ def add_stubs(registry_path, missing):
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Find workflow repos in the org that are not in the registry.")
     parser.add_argument("--registry", default=str(HERE / "registry.yaml"))
-    parser.add_argument("--org", default="wildlife-dynamics")
+    parser.add_argument("--org", action="append", default=None, help=f"github owner to scan (repeatable; default: {', '.join(DEFAULT_ORGS)})")
     parser.add_argument("--add", action="store_true", help="append missing repos to the registry as stubs")
     parser.add_argument("--json", action="store_true", help="print the missing list as JSON (for collect.py --unregistered)")
     args = parser.parse_args(argv)
@@ -83,13 +84,13 @@ def main(argv=None):
         print(f"error: {e}", file=sys.stderr)
         return 2
     client = GitHubClient()
-    try:
-        org_repos = list_org_repos(client, args.org)
-    except GitHubError as e:
-        print(f"warning: could not list org repos: {e}", file=sys.stderr)
-        if args.json:
-            print("[]")
-        return 0
+    orgs = args.org or DEFAULT_ORGS
+    org_repos = []
+    for org in orgs:
+        try:
+            org_repos.extend(list_org_repos(client, org))
+        except GitHubError as e:
+            print(f"warning: could not list org repos for {org}: {e}", file=sys.stderr)
     spec_flags = {}
     for r in org_repos:
         try:

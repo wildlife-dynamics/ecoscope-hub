@@ -37,8 +37,9 @@ To find workflow repos that are not registered yet:
 ## One-time setup
 
 The Action needs a repo secret `MONITOR_PAT`: a fine-grained personal access token for the
-`wildlife-dynamics` org with **Organization permissions → Projects: read** and **Repository
-permissions → Contents, Issues, Actions, Metadata: read** on all repos. Without it, epics show
+`wildlife-dynamics` and `ecoscope-platform-workflows-releases` orgs with **Organization
+permissions → Projects: read** and **Repository permissions → Contents, Issues, Actions,
+Metadata: read** on all repos. Without it, epics show
 errors and private repos do not resolve.
 
 Two one-time commands, then a manual run:

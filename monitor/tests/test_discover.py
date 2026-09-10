@@ -3,7 +3,7 @@ import json
 import yaml
 
 from conftest import FakeResponse
-from discover import add_stubs, diff, has_spec, list_org_repos, main
+from discover import DEFAULT_ORGS, add_stubs, diff, has_spec, list_org_repos, main
 from gh import API
 
 
@@ -91,6 +91,55 @@ def test_main_json_prints_empty_list_when_org_listing_fails(client, session, tmp
     out, err = capsys.readouterr()
     assert out.strip() == "[]"
     assert "could not list org repos" in err
+
+
+def test_main_scans_default_orgs_when_org_not_given(client, session, tmp_path, capsys, monkeypatch):
+    import discover as mod
+
+    real = mod.GitHubClient
+    monkeypatch.setattr(mod, "GitHubClient", lambda: real(token="t", session=session))
+    assert DEFAULT_ORGS == ["wildlife-dynamics", "ecoscope-platform-workflows-releases"]
+    session.add("GET", f"{API}/orgs/wildlife-dynamics/repos", FakeResponse(200, [{"full_name": "wildlife-dynamics/a", "private": False, "archived": False}]))
+    session.add("GET", f"{API}/repos/wildlife-dynamics/a/contents/spec.yaml", FakeResponse(200, {}))
+    session.add("GET", f"{API}/orgs/ecoscope-platform-workflows-releases/repos", FakeResponse(200, [{"full_name": "ecoscope-platform-workflows-releases/b", "private": False, "archived": False}]))
+    session.add("GET", f"{API}/repos/ecoscope-platform-workflows-releases/b/contents/spec.yaml", FakeResponse(200, {}))
+    registry = tmp_path / "registry.yaml"
+    registry.write_text("workflows: []\n")
+    assert main(["--registry", str(registry), "--json"]) == 0
+    missing = {item["repo"] for item in json.loads(capsys.readouterr().out)}
+    assert missing == {"wildlife-dynamics/a", "ecoscope-platform-workflows-releases/b"}
+
+
+def test_main_org_flag_is_repeatable_and_overrides_default(client, session, tmp_path, capsys, monkeypatch):
+    import discover as mod
+
+    real = mod.GitHubClient
+    monkeypatch.setattr(mod, "GitHubClient", lambda: real(token="t", session=session))
+    session.add("GET", f"{API}/orgs/one/repos", FakeResponse(200, [{"full_name": "one/a", "private": False, "archived": False}]))
+    session.add("GET", f"{API}/repos/one/a/contents/spec.yaml", FakeResponse(200, {}))
+    session.add("GET", f"{API}/orgs/two/repos", FakeResponse(200, [{"full_name": "two/b", "private": False, "archived": False}]))
+    session.add("GET", f"{API}/repos/two/b/contents/spec.yaml", FakeResponse(200, {}))
+    registry = tmp_path / "registry.yaml"
+    registry.write_text("workflows: []\n")
+    assert main(["--registry", str(registry), "--org", "one", "--org", "two", "--json"]) == 0
+    missing = {item["repo"] for item in json.loads(capsys.readouterr().out)}
+    assert missing == {"one/a", "two/b"}
+
+
+def test_main_continues_when_one_org_fails(client, session, tmp_path, capsys, monkeypatch):
+    import discover as mod
+
+    real = mod.GitHubClient
+    monkeypatch.setattr(mod, "GitHubClient", lambda: real(token="t", session=session))
+    session.add("GET", f"{API}/orgs/one/repos", FakeResponse(500, {"message": "boom"}))
+    session.add("GET", f"{API}/orgs/two/repos", FakeResponse(200, [{"full_name": "two/b", "private": False, "archived": False}]))
+    session.add("GET", f"{API}/repos/two/b/contents/spec.yaml", FakeResponse(200, {}))
+    registry = tmp_path / "registry.yaml"
+    registry.write_text("workflows: []\n")
+    assert main(["--registry", str(registry), "--org", "one", "--org", "two", "--json"]) == 0
+    out, err = capsys.readouterr()
+    assert json.loads(out) == [{"repo": "two/b"}]
+    assert "could not list org repos for one" in err
 
 
 def test_add_stubs_handles_empty_flow_list(tmp_path):

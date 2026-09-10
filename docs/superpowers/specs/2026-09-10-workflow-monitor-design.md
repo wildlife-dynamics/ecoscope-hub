@@ -186,8 +186,9 @@ registry or an uncaught exception.
 
 ## Discovery — `monitor/discover.py`
 
-1. List all non-archived, public repos in `wildlife-dynamics` (paginated); private repos are
-   excluded.
+1. List all non-archived, public repos across the configured GitHub owners — by default
+   `wildlife-dynamics` and `ecoscope-platform-workflows-releases` (paginated per owner,
+   `--org` repeatable to override); private repos are excluded.
 2. A repo is a workflow repo iff it has `spec.yaml` at its root.
 3. Compare with the registry and report three groups: workflow repos missing from the
    registry, registry entries whose repo is gone or archived, org repos without `spec.yaml`.
