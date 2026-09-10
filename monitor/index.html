@@ -30,7 +30,8 @@
   .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--card); }
   table { border-collapse: collapse; width: 100%; min-width: 900px; }
   th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  th { font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+  th { font-weight: 600; white-space: nowrap; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+  #wf-table th { cursor: pointer; user-select: none; }
   th.sorted::after { content: " ▲"; } th.sorted.desc::after { content: " ▼"; }
   tr.row { cursor: pointer; } tr.row:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
   tr.detail td { background: color-mix(in srgb, var(--chip) 60%, transparent); cursor: default; }
@@ -153,7 +154,7 @@
 
   function badges(w) {
     const out = [];
-    if (w.spec_missing) out.push('<span class="badge bad">no spec.yaml</span>');
+    if (w.spec_missing && w.repo) out.push('<span class="badge bad">no spec.yaml</span>');
     else if (w.metadata_missing) out.push('<span class="badge">no metadata</span>');
     if (!w.epic) out.push('<span class="badge">no epic</span>');
     if (w.visibility === 'private') out.push('<span class="badge">private</span>');
@@ -175,7 +176,7 @@
       case 'outputs': return [w.outputs.map(o => o.type).join(',')];
       case 'indicators': return [w.indicators.join(',')];
       case 'ci': return [w.ci_status || 'zz'];
-      case 'open': return [-openWork(w)];
+      case 'open': return [openWork(w)];
       default: return [''];
     }
   }
@@ -217,7 +218,7 @@
         <td>${w.web_version ? chip('v' + w.web_version, 'ok') : '<span class="muted">—</span>'}</td>
         <td>${uniq(w.outputs.map(o => o.type)).map(t => chip(t)).join('') || '<span class="muted">—</span>'}</td>
         <td>${w.indicators.map(i => chip(i, 'info')).join('') || '<span class="muted">—</span>'}</td>
-        <td>${w.ci_status ? link(w.ci_url, w.ci_status).replace('<a ', `<a class="chip ${ciClass(w.ci_status)}" `) : '<span class="muted">—</span>'}</td>
+        <td>${w.ci_status && w.ci_url ? `<a class="chip ${ciClass(w.ci_status)}" href="${esc(w.ci_url)}" target="_blank" rel="noopener">${esc(w.ci_status)}</a>` : w.ci_status ? chip(w.ci_status, ciClass(w.ci_status)) : '<span class="muted">—</span>'}</td>
         <td>${openWork(w)}</td>
       </tr>`;
       return row + (state.open === w.id ? `<tr class="detail"><td colspan="11">${renderDetail(w)}</td></tr>` : '');
@@ -228,7 +229,11 @@
     }
   }
 
-  function age(iso) { const d = (Date.now() - Date.parse(iso)) / 864e5; return d < 1 ? 'today' : `${Math.floor(d)}d`; }
+  function age(iso) {
+    if (!iso || Number.isNaN(Date.parse(iso))) return '—';
+    const d = (Date.now() - Date.parse(iso)) / 864e5;
+    return d < 1 ? 'today' : `${Math.floor(d)}d`;
+  }
   function renderDetail(w) {
     const e = w.epic;
     const subs = (e?.sub_issues || []).slice().sort((a, b) => (a.state === b.state ? 0 : a.state === 'OPEN' ? -1 : 1));
@@ -296,6 +301,14 @@
     gen.textContent = `generated ${Math.round(ageMs / 6e4)} min ago (${data.generated_at})`;
     gen.classList.toggle('stale', ageMs > 12 * 36e5);
 
+    const warnings = data.warnings || [];
+    if (warnings.length) {
+      const w = document.createElement('span');
+      w.className = 'meta stale';
+      w.textContent = warnings.join(' · ');
+      gen.insertAdjacentElement('afterend', w);
+    }
+
     const projects = uniq(state.workflows.flatMap(projectsOf)).sort();
     fillSelect($('#wf-project'), projects); fillSelect($('#out-project'), projects);
     fillSelect($('#wf-status'), uniq(state.workflows.map(w => w.epic?.status)).sort((a, b) => rank(STATUS_ORDER, a) - rank(STATUS_ORDER, b)));
@@ -338,6 +351,10 @@
       $('#generated').textContent = 'failed to load data.json: ' + err.message;
       $('#generated').classList.add('stale');
       $('#wf-table tbody').innerHTML = '<tr><td colspan="11" class="empty">Could not load the snapshot. Check the latest monitor run in Actions.</td></tr>';
+      $('#out-table tbody').innerHTML = '<tr><td colspan="7" class="empty">Could not load the snapshot.</td></tr>';
+      $('#wf-count').textContent = '';
+      $('#out-count').textContent = '';
+      $('#unreg summary').textContent = 'Unregistered workflow repos (—)';
     });
 })();
 </script>
