@@ -143,6 +143,9 @@ get `spec_missing: true`. Both still produce a row.
                   {"name": "...", "type": "map", "description": "...", "indicators": ["ndvi"]}],
       "indicators": ["ndvi"], "unknown_indicators": [],
       "metadata_missing": false, "spec_missing": false,
+      "task_libraries": [{"name": "ecoscope-platform", "version": ">=2.11.6, <2.12.0",
+                          "channel": "https://repo.prefix.dev/ecoscope-workflows/"}],
+      "wt_compiler_version": ">=0.5.2, <0.6.0",
       "desktop_version": "1.0.0", "web_version": "1.0.0",
       "ci_status": "success", "ci_url": "https://...",
       "open_issue_count": 3,
@@ -189,6 +192,12 @@ in order, each step recording an error string and continuing on failure:
 5. Open issues in the repo (`state=open`, excluding items with `pull_request` and items whose
    issue type is `Workflow` — an epic living in the same repo as its workflow otherwise shows
    up as one of its own repo issues) → number, title, url, labels, created_at, assignee login.
+6. `pixi.toml` on the default branch → the `wt-compiler` pin from `[dependencies]`
+   (`wt_compiler_version`; null if the file, table, or key is absent — this is a real gap for
+   pre-`wt`-tooling repos, not an error).
+7. `spec.yaml`'s top-level `requirements:` list (read alongside `metadata:` in step 2, with the
+   same `ecoscope-web` fallback) → `task_libraries`, one `{name, version, channel}` entry per
+   requirement, in declared order.
 
 One HTTP helper handles the token, pagination, and a bounded retry on 403 rate-limit
 responses. ~7 calls per repo; well under the limits for a PAT.
@@ -245,9 +254,9 @@ chips).
 **Tabs**: Workflows, Outputs.
 
 **Workflows tab**
-- Filter bar: text search over id, name, indicators; dropdowns for project, status,
-  priority, output type, availability (Desktop / Web / none). Filter state lives in the URL
-  hash.
+- Filter bar: text search over id, name, indicators; dropdowns for project, status, assignee
+  (the epic's assignee logins), priority, output type, availability (Desktop / Web / none).
+  Filter state lives in the URL hash.
 - Table, default sort by priority (P0 first, missing last), then status in project order,
   then name; any column sortable:
   `Priority | Workflow | Project | Status | Assignee | Desktop | Web | Outputs | CI | Open work`
@@ -256,11 +265,13 @@ chips).
   drill-down modal.
 - Badges in the Workflow cell for `metadata_missing`, `spec_missing`, `archived`, no epic,
   `unknown_indicators`, and `errors`. Status, priority, and CI colour-coded.
-- Row click opens a modal (open id in the URL hash): epic link with its state, size, and
-  sub-issue progress; description (with its `metadata_source` when set); maintainers; the
-  output list (name, type, description, indicator chips); last CI run link; "Edit in registry"
-  link; then **Repo issues** (the repo's open issues, excluding epics, with number, title,
-  labels, age, assignee, each linking to GitHub). There is no separate "Tracked work" list of
+- Row click opens a modal (open id in the URL hash): repo link, last CI run link, "Edit in
+  registry" link; a **Build** block (`wt_compiler_version` and the `task_libraries` list, each
+  with its channel); description (with its `metadata_source` when set); maintainers; epic link
+  with its state, size, sub-issue progress, and assignees; the output list (name, type,
+  description, indicator chips); then **Repo issues** (the repo's open issues, excluding epics,
+  with number, title, labels, age, assignee, each linking to GitHub). There is no separate
+  "Tracked work" list of
   the epic's sub-issues in the modal — `sub_issues_completed`/`sub_issues_total` in the Epic
   block is the only place that data still surfaces on the page.
 
@@ -286,7 +297,9 @@ link to each and to `registry.yaml`.
   the catalog, and is null (not an error) when no `VERSION.yaml` exists anywhere; missing
   `ecoscope-web` branch → null web version; unknown indicator flagged; alias mapping; 404 on
   one repo isolates to that record; issues exclude pull requests and the epic's own `Workflow`-
-  typed issue; priority/status sort order helper.
+  typed issue; `task_libraries` read from `spec.yaml`'s `requirements:`; `wt_compiler_version`
+  read from `pixi.toml`'s `[dependencies]`, null (not an error) when the file or key is absent;
+  priority/status sort order helper.
 - `monitor/tests/test_discover.py` — root `spec.yaml` detection; three-group diff.
 - One live smoke test, skipped without a token, running `collect.py --only ndvi` and
   asserting metadata and a desktop version are present.

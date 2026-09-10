@@ -1,6 +1,7 @@
 import argparse
 import json
 import sys
+import tomllib
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -67,9 +68,30 @@ def _read_metadata(client, repo, ref):
     try:
         spec = yaml.safe_load(client.get_text(repo, "spec.yaml", ref)) or {}
     except NotFound:
-        return None, False
+        return None, [], False
     meta = spec.get("metadata") if isinstance(spec, dict) else None
-    return meta, True
+    requirements = spec.get("requirements") if isinstance(spec, dict) else None
+    requirements = requirements if isinstance(requirements, list) else []
+    task_libraries = [
+        {"name": str(r.get("name") or ""), "version": str(r.get("version") or ""), "channel": str(r.get("channel") or "")}
+        for r in requirements
+        if isinstance(r, dict)
+    ]
+    return meta, task_libraries, True
+
+
+def _read_wt_compiler_version(client, repo, ref):
+    try:
+        text = client.get_text(repo, "pixi.toml", ref)
+    except NotFound:
+        return None
+    try:
+        data = tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        return None
+    deps = data.get("dependencies") if isinstance(data, dict) else None
+    version = deps.get("wt-compiler") if isinstance(deps, dict) else None
+    return version if isinstance(version, str) else None
 
 
 def _ci(client, repo, branch):
@@ -114,6 +136,8 @@ def _empty_record(entry):
         "metadata_missing": True,
         "spec_missing": True,
         "metadata_source": None,
+        "task_libraries": [],
+        "wt_compiler_version": None,
         "desktop_version": None,
         "web_version": None,
         "ci_status": None,
@@ -156,8 +180,9 @@ def collect_workflow(entry, client, catalog, vocab):
     web_exists = _branch_exists(client, repo, WEB_BRANCH)
 
     meta = None
+    task_libraries = []
     try:
-        meta, spec_found = _read_metadata(client, repo, branch)
+        meta, task_libraries, spec_found = _read_metadata(client, repo, branch)
     except Exception as e:  # noqa: BLE001
         errors.append(f"spec.yaml: {e}")
         spec_found = False
@@ -166,13 +191,16 @@ def collect_workflow(entry, client, catalog, vocab):
 
     if not isinstance(meta, dict) and web_exists:
         try:
-            web_meta, _ = _read_metadata(client, repo, WEB_BRANCH)
+            web_meta, web_task_libraries, _ = _read_metadata(client, repo, WEB_BRANCH)
         except Exception as e:  # noqa: BLE001
             errors.append(f"spec.yaml@{WEB_BRANCH}: {e}")
-            web_meta = None
+            web_meta, web_task_libraries = None, []
         if isinstance(web_meta, dict):
             meta = web_meta
+            task_libraries = web_task_libraries
             record["metadata_source"] = WEB_BRANCH
+
+    record["task_libraries"] = task_libraries
 
     if isinstance(meta, dict):
         record["metadata_missing"] = False
@@ -180,6 +208,11 @@ def collect_workflow(entry, client, catalog, vocab):
         record["description"] = str(meta.get("description") or "")
         record["maintainers"] = [m for m in meta.get("maintainers") or [] if isinstance(m, dict)]
         record["outputs"], record["indicators"], record["unknown_indicators"] = normalize_outputs(meta, record["name"], vocab)
+
+    try:
+        record["wt_compiler_version"] = _read_wt_compiler_version(client, repo, branch)
+    except Exception as e:  # noqa: BLE001
+        errors.append(f"pixi.toml: {e}")
 
     canonical = (info.get("full_name") or repo).lower()
     version_path = catalog.get(canonical)

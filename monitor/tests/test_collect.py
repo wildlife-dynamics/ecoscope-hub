@@ -32,6 +32,10 @@ def add_version(session, repo, ref, text="{MAJ: 1, MIN: 2, PATCH: 3}"):
     session.add("GET", f"{API}/repos/{repo}/contents/pkg-workflow/VERSION.yaml", lambda params, body: FakeResponse(200, text=text) if params == {"ref": ref} else FakeResponse(404, {}))
 
 
+def add_pixi(session, repo="o/r", text='[dependencies]\nwt-compiler = ">=0.5.2, <0.6.0"\n'):
+    session.add("GET", f"{API}/repos/{repo}/contents/pixi.toml", FakeResponse(200, text=text))
+
+
 def add_tree(session, repo="o/r", ref="main", paths=("pkg-workflow/VERSION.yaml",)):
     session.add("GET", f"{API}/repos/{repo}/git/trees/{ref}", FakeResponse(200, {"tree": [{"path": p, "type": "blob"} for p in paths]}))
 
@@ -132,6 +136,32 @@ def test_collect_workflow_public_repo_full_record(client, session):
     assert record["issues"] == [{"number": 6, "title": "Bug", "url": "u6", "labels": ["bug"], "created_at": "2026-01-02T00:00:00Z", "assignee": "yun"}]
     assert record["metadata_missing"] is False and record["spec_missing"] is False
     assert record["metadata_source"] == "main"
+    assert record["wt_compiler_version"] is None
+    assert record["task_libraries"] == []
+
+
+def test_collect_workflow_reads_task_libraries_and_wt_compiler_version(client, session):
+    add_epic(session)
+    add_repo(session)
+    add_spec(session, text=SPEC + '\nrequirements:\n  - name: ecoscope-platform\n    version: ">=2.11.6, <2.12.0"\n    channel: https://repo.prefix.dev/ecoscope-workflows/\n')
+    add_pixi(session)
+    add_ci(session)
+    add_issues(session)
+    record = collect_workflow(full_entry(), client, {}, VOCAB)
+    assert record["errors"] == []
+    assert record["task_libraries"] == [{"name": "ecoscope-platform", "version": ">=2.11.6, <2.12.0", "channel": "https://repo.prefix.dev/ecoscope-workflows/"}]
+    assert record["wt_compiler_version"] == ">=0.5.2, <0.6.0"
+
+
+def test_collect_workflow_missing_pixi_toml_is_null_not_an_error(client, session):
+    add_epic(session)
+    add_repo(session)
+    add_spec(session)
+    add_ci(session)
+    add_issues(session)
+    record = collect_workflow(full_entry(), client, {}, VOCAB)
+    assert record["wt_compiler_version"] is None
+    assert record["errors"] == []
 
 
 def test_collect_workflow_metadata_falls_back_to_web_branch(client, session):
