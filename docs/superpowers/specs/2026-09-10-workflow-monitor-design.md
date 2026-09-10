@@ -23,7 +23,7 @@ in-page editing) reuses the collector and page unchanged; it is out of scope her
 |---|---|---|
 | Which workflows exist, and the epic issue for each | ecoscope-hub | `monitor/registry.yaml` |
 | Lifecycle status, priority, size, the board's `Project` text field, tracked sub-issues | GitHub Projects | the epic issue's project items (Wildlife Dynamics project #9 first) and sub-issues, via GraphQL |
-| Name, description, maintainers, outputs → components → indicators | each workflow repo | `metadata:` block in `spec.yaml` on the default branch |
+| Name, description, maintainers, outputs → components → indicators | each workflow repo | `metadata:` block in `spec.yaml` on the default branch, falling back to `ecoscope-web` when the default branch has no `metadata:` block; `metadata_source` records which |
 | Canonical indicator vocabulary | ecoscope-hub | `monitor/indicators.yaml` |
 | Desktop availability + version | derived | repo is public **and** listed in the Desktop catalog JSON (catalog URLs are resolved to each repo's canonical name so renames still match); version from `VERSION.yaml` on `main` |
 | Web availability + version | derived | repo is public **and** has an `ecoscope-web` branch; version from `VERSION.yaml` on that branch |
@@ -164,6 +164,9 @@ in order, each step recording an error string and continuing on failure:
 1. `GET /repos/{repo}` → visibility, archived, default branch. 404 → error, skip the rest.
    Private repo → warn and exclude the workflow from the snapshot entirely.
 2. `spec.yaml` from the default branch → parse `metadata:`; normalise outputs and indicators.
+   If the default branch has no `metadata:` block and branch `ecoscope-web` exists, read
+   `spec.yaml` there instead. `metadata_source` records which branch the metadata came from
+   (`null` when neither has one).
 3. Availability:
    - Fetch the Desktop catalog JSON once per run
      (`https://storage.googleapis.com/ecoscope-io-storage-public/ecoscope-desktop/hardcoded-template-catalog/workflow_templates.json`).

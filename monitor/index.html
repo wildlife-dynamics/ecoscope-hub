@@ -158,6 +158,7 @@
     else if (w.metadata_missing) out.push('<span class="badge">no metadata</span>');
     if (!w.epic) out.push('<span class="badge">no epic</span>');
     if (w.archived) out.push('<span class="badge">archived</span>');
+    if (w.metadata_source && w.metadata_source !== 'main') out.push(`<span class="badge">metadata from ${esc(w.metadata_source)}</span>`);
     if (w.unknown_indicators?.length) out.push(`<span class="badge" title="${esc(w.unknown_indicators.join(', '))}">unknown indicators</span>`);
     if (w.errors?.length) out.push(`<span class="badge bad" title="${esc(w.errors.join('\n'))}">${w.errors.length} error${w.errors.length > 1 ? 's' : ''}</span>`);
     return out.join('');
@@ -246,7 +247,7 @@
     const errors = w.errors.length ? `<div><h4>Errors</h4><ul>${w.errors.map(x => `<li class="badge bad">${esc(x)}</li>`).join('')}</ul></div>` : '';
     return `<div class="detail">
       <div><h4>Epic</h4>${epicBlock}<h4>Repo</h4><p>${repoLink}${w.ci_url ? ' · ' + link(w.ci_url, 'last CI run') : ''} · <a href="https://github.com/wildlife-dynamics/ecoscope-hub/edit/main/monitor/registry.yaml" target="_blank" rel="noopener">edit in registry</a></p>
-        ${w.description ? '<h4>Description</h4><p>' + esc(w.description) + '</p>' : ''}${maint ? '<h4>Maintainers</h4><p>' + maint + '</p>' : ''}</div>
+        ${w.description ? '<h4>Description</h4><p>' + esc(w.description) + (w.metadata_source ? ' <span class="muted">(' + esc(w.metadata_source) + ')</span>' : '') + '</p>' : ''}${maint ? '<h4>Maintainers</h4><p>' + maint + '</p>' : ''}</div>
       <div><h4>Outputs</h4>${outputs ? '<ul>' + outputs + '</ul>' : '<p class="muted">None declared.</p>'}</div>
       <div><h4>Tracked work (${subs.filter(s => s.state === 'OPEN').length} open)</h4>${tracked ? '<ul>' + tracked + '</ul>' : '<p class="muted">No sub-issues.</p>'}
         <h4>Repo issues (${w.issues.length})</h4>${issues ? '<ul>' + issues + '</ul>' : '<p class="muted">None open.</p>'}${errors}</div>

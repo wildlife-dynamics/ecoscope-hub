@@ -63,6 +63,15 @@ def _branch_exists(client, repo, branch):
         return False
 
 
+def _read_metadata(client, repo, ref):
+    try:
+        spec = yaml.safe_load(client.get_text(repo, "spec.yaml", ref)) or {}
+    except NotFound:
+        return None, False
+    meta = spec.get("metadata") if isinstance(spec, dict) else None
+    return meta, True
+
+
 def _ci(client, repo, branch):
     try:
         runs = client.get(f"/repos/{repo}/actions/workflows/test.yml/runs", params={"branch": branch, "per_page": 1})
@@ -104,6 +113,7 @@ def _empty_record(entry):
         "unknown_indicators": [],
         "metadata_missing": True,
         "spec_missing": True,
+        "metadata_source": None,
         "desktop_version": None,
         "web_version": None,
         "ci_status": None,
@@ -143,16 +153,27 @@ def collect_workflow(entry, client, catalog, vocab):
     record["repo"] = info.get("full_name") or repo
     record["archived"] = bool(info.get("archived"))
     branch = info.get("default_branch") or "main"
+    web_exists = _branch_exists(client, repo, WEB_BRANCH)
 
     meta = None
     try:
-        spec = yaml.safe_load(client.get_text(repo, "spec.yaml", branch)) or {}
-        record["spec_missing"] = False
-        meta = spec.get("metadata") if isinstance(spec, dict) else None
-    except NotFound:
-        pass
+        meta, spec_found = _read_metadata(client, repo, branch)
     except Exception as e:  # noqa: BLE001
         errors.append(f"spec.yaml: {e}")
+        spec_found = False
+    record["spec_missing"] = not spec_found
+    record["metadata_source"] = branch if isinstance(meta, dict) else None
+
+    if not isinstance(meta, dict) and web_exists:
+        try:
+            web_meta, _ = _read_metadata(client, repo, WEB_BRANCH)
+        except Exception as e:  # noqa: BLE001
+            errors.append(f"spec.yaml@{WEB_BRANCH}: {e}")
+            web_meta = None
+        if isinstance(web_meta, dict):
+            meta = web_meta
+            record["metadata_source"] = WEB_BRANCH
+
     if isinstance(meta, dict):
         record["metadata_missing"] = False
         record["name"] = str(meta.get("name") or entry["id"])
@@ -165,7 +186,7 @@ def collect_workflow(entry, client, catalog, vocab):
     try:
         if version_path:
             record["desktop_version"] = _read_version(client, repo, branch, version_path)
-        if _branch_exists(client, repo, WEB_BRANCH):
+        if web_exists:
             path = version_path or find_version_path(client, repo, WEB_BRANCH)
             if path:
                 record["web_version"] = _read_version(client, repo, WEB_BRANCH, path)

@@ -131,6 +131,33 @@ def test_collect_workflow_public_repo_full_record(client, session):
     assert record["open_issue_count"] == 1
     assert record["issues"] == [{"number": 6, "title": "Bug", "url": "u6", "labels": ["bug"], "created_at": "2026-01-02T00:00:00Z", "assignee": "yun"}]
     assert record["metadata_missing"] is False and record["spec_missing"] is False
+    assert record["metadata_source"] == "main"
+
+
+def test_collect_workflow_metadata_falls_back_to_web_branch(client, session):
+    add_epic(session)
+    add_repo(session)
+    session.add("GET", f"{API}/repos/o/r/branches/ecoscope-web", FakeResponse(200, {"name": "ecoscope-web"}))
+    session.add("GET", f"{API}/repos/o/r/contents/spec.yaml", lambda params, body: FakeResponse(200, text=SPEC) if params == {"ref": "ecoscope-web"} else FakeResponse(200, text="id: x\n"))
+    add_ci(session)
+    add_issues(session)
+    record = collect_workflow(full_entry(), client, {}, VOCAB)
+    assert record["metadata_missing"] is False
+    assert record["metadata_source"] == "ecoscope-web"
+    assert record["name"] == "NDVI Workflow"
+
+
+def test_collect_workflow_metadata_prefers_default_branch(client, session):
+    add_epic(session)
+    add_repo(session)
+    add_spec(session)
+    session.add("GET", f"{API}/repos/o/r/branches/ecoscope-web", FakeResponse(200, {"name": "ecoscope-web"}))
+    add_ci(session)
+    add_issues(session)
+    record = collect_workflow(full_entry(), client, {}, VOCAB)
+    assert record["metadata_missing"] is False
+    assert record["metadata_source"] == "main"
+    assert record["name"] == "NDVI Workflow"
 
 
 def test_collect_workflow_resolves_renamed_repo_alias(client, session):
@@ -193,6 +220,7 @@ def test_collect_workflow_missing_metadata_and_spec_flags(client, session):
     record = collect_workflow(full_entry(), client, {}, VOCAB)
     assert record["metadata_missing"] is True and record["spec_missing"] is False
     assert record["name"] == "r"
+    assert record["metadata_source"] is None
 
     session2 = type(session)()
     client2 = type(client)(token="t", session=session2)
@@ -202,6 +230,7 @@ def test_collect_workflow_missing_metadata_and_spec_flags(client, session):
     add_issues(session2)
     record = collect_workflow(full_entry(), client2, {}, VOCAB)
     assert record["spec_missing"] is True and record["metadata_missing"] is True
+    assert record["metadata_source"] is None
 
 
 def test_collect_workflow_repo_404_records_error_but_keeps_epic(client, session):
