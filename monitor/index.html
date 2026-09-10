@@ -51,7 +51,8 @@
   details.unreg { margin-top: 16px; }
   details.unreg summary { cursor: pointer; color: var(--muted); }
   .count { color: var(--muted); font-size: 12px; margin-bottom: 6px; }
-  .stats { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+  .stats { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+  .stats-row { display: flex; flex-wrap: wrap; gap: 12px; }
   .stat-tile, .stat-chart { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; }
   .stat-tile { min-width: 140px; }
   .stat-value { font-size: 28px; font-weight: 700; line-height: 1; font-variant-numeric: normal; }
@@ -64,6 +65,12 @@
   .donut-legend li { display: flex; align-items: center; gap: 6px; margin: 3px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .donut-legend .swatch { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 auto; }
   .donut-legend .count { color: var(--muted); margin-left: auto; padding-left: 8px; }
+  .bars { display: flex; flex-direction: column; gap: 7px; margin-top: 6px; }
+  .bar-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .bar-row .bar-label { width: 60px; flex: 0 0 auto; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-row .bar-track { flex: 1 1 auto; background: var(--chip); border-radius: 4px; height: 10px; overflow: hidden; }
+  .bar-row .bar-fill { display: block; height: 100%; border-radius: 4px; }
+  .bar-row .bar-count { width: 22px; text-align: right; flex: 0 0 auto; }
   #modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.55); align-items: center; justify-content: center; padding: 16px; z-index: 100; }
   #modal:not([hidden]) { display: flex; }
   .modal-card { background: var(--card); color: var(--fg); border: 1px solid var(--line); border-radius: 10px;
@@ -88,15 +95,25 @@
 </header>
 
 <div class="stats" id="stats">
-  <div class="stat-tile"><div class="stat-value" id="stat-workflows">—</div><div class="stat-label">Workflows available</div></div>
-  <div class="stat-tile"><div class="stat-value" id="stat-outputs">—</div><div class="stat-label">Unique outputs</div></div>
-  <div class="stat-tile"><div class="stat-value" id="stat-desktop">—</div><div class="stat-label">On Desktop</div></div>
-  <div class="stat-tile"><div class="stat-value" id="stat-web">—</div><div class="stat-label">On Web</div></div>
-  <div class="stat-chart">
-    <svg class="donut" id="org-donut" viewBox="0 0 100 100" role="img" aria-label="Workflows by project"></svg>
-    <div class="donut-col">
-      <h3>Workflows by project</h3>
-      <ul class="donut-legend" id="org-legend"></ul>
+  <div class="stats-row stats-numbers">
+    <div class="stat-tile"><div class="stat-value" id="stat-workflows">—</div><div class="stat-label">Workflows available</div></div>
+    <div class="stat-tile"><div class="stat-value" id="stat-outputs">—</div><div class="stat-label">Unique outputs</div></div>
+    <div class="stat-tile"><div class="stat-value" id="stat-desktop">—</div><div class="stat-label">On Desktop</div></div>
+    <div class="stat-tile"><div class="stat-value" id="stat-web">—</div><div class="stat-label">On Web</div></div>
+  </div>
+  <div class="stats-row stats-charts">
+    <div class="stat-chart">
+      <svg class="donut" id="org-donut" viewBox="0 0 100 100" role="img" aria-label="Workflows by project"></svg>
+      <div class="donut-col">
+        <h3>Workflows by project</h3>
+        <ul class="donut-legend" id="org-legend"></ul>
+      </div>
+    </div>
+    <div class="stat-chart">
+      <div class="donut-col">
+        <h3>Workflows by priority</h3>
+        <div class="bars" id="priority-bars"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -318,6 +335,7 @@
 
   const SERIES = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)', 'var(--series-4)', 'var(--series-5)', 'var(--series-6)'];
   const OTHER_COLOR = 'var(--muted)';
+  const PRIORITY_COLORS = { P0: 'var(--bad)', P1: 'var(--warn)', P2: 'var(--info)', P3: 'var(--muted)' };
 
   function renderStats() {
     $('#stat-workflows').textContent = state.workflows.length;
@@ -351,6 +369,21 @@
     }).join('');
     $('#org-donut').innerHTML = arcs;
     $('#org-legend').innerHTML = entries.map((e, i) => `<li><span class="swatch" style="background:${colors[i]}"></span><span>${esc(e.name)}</span><span class="count">${e.count}</span></li>`).join('') || '<li class="muted">No data.</li>';
+
+    const priorityCounts = new Map(PRIORITY_ORDER.map(p => [p, 0]));
+    priorityCounts.set('No priority', 0);
+    for (const w of state.workflows) {
+      const p = w.epic?.priority;
+      const key = PRIORITY_ORDER.includes(p) ? p : 'No priority';
+      priorityCounts.set(key, priorityCounts.get(key) + 1);
+    }
+    const priorityEntries = [...priorityCounts.entries()];
+    const priorityMax = Math.max(1, ...priorityEntries.map(([, count]) => count));
+    $('#priority-bars').innerHTML = priorityEntries.map(([label, count]) => {
+      const color = PRIORITY_COLORS[label] || 'var(--muted)';
+      const pct = Math.round(count / priorityMax * 100);
+      return `<div class="bar-row"><span class="bar-label">${esc(label)}</span><span class="bar-track"><span class="bar-fill" style="width:${pct}%;background:${color}" title="${esc(label)}: ${count}"></span></span><span class="bar-count">${count}</span></div>`;
+    }).join('');
   }
 
   function renderUnregistered() {
