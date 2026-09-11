@@ -381,7 +381,8 @@
     const priorityCounts = new Map(PRIORITY_ORDER.map(p => [p, 0]));
     priorityCounts.set('No priority', 0);
     for (const w of state.workflows) {
-      if (w.epic?.status === 'Done') continue;
+      const status = w.epic?.status;
+      if (!status || status === 'Done') continue;
       const p = w.epic?.priority;
       const key = PRIORITY_ORDER.includes(p) ? p : 'No priority';
       priorityCounts.set(key, priorityCounts.get(key) + 1);

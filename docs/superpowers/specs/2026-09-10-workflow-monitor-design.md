@@ -255,8 +255,8 @@ last two count epics by board Status). Row two holds two charts, each spanning t
 so the row totals the same width as row one: a workflows-by-Project donut (legend, per-slice
 tooltips, smallest slices folded into "Other" past 7 distinct projects) and an "Open Workflows
 by Priority" bar chart (`P0`..`P3` plus "No priority", bars coloured to match the table's
-priority chips) that excludes workflows whose epic status is `Done` — it counts only work
-still outstanding.
+priority chips) that excludes workflows with no epic status and workflows whose epic status is
+`Done` — it counts only work that is both tracked and still outstanding.
 
 **Tabs**: Workflows, Outputs.
 
