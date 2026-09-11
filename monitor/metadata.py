@@ -22,7 +22,7 @@ def load_registry(path):
     raw = data.get("workflows")
     if not isinstance(raw, list):
         raise RegistryError("registry must have a top-level 'workflows' list")
-    entries, seen = [], set()
+    entries, seen, seen_repos = [], set(), {}
     for i, item in enumerate(raw):
         if not isinstance(item, dict) or not item.get("id"):
             raise RegistryError(f"entry {i} is missing an id")
@@ -34,6 +34,11 @@ def load_registry(path):
         epic = item.get("epic") or None
         if not repo and not epic:
             raise RegistryError(f"{wid}: needs repo or epic")
+        if repo:
+            key = repo.lower()
+            if key in seen_repos:
+                raise RegistryError(f"repo {repo} is used by both {seen_repos[key]!r} and {wid!r}; each repo may back only one workflow")
+            seen_repos[key] = wid
         if epic:
             parse_epic_url(epic)
         entries.append({"id": wid, "repo": repo, "epic": epic})

@@ -15,6 +15,7 @@ workflows:
     epic: https://github.com/wildlife-dynamics/wt-download-subject-tracks/issues/21
   - id: wt-hydrological-monitoring
     repo: wildlife-dynamics/wt-hydrological-monitoring
+    epic: https://github.com/wildlife-dynamics/wt-hydrological-monitoring/issues/13
   - id: patrol-effort-table
     repo: wildlife-dynamics/patrol-effort-table
     epic: https://github.com/wildlife-dynamics/patrol-effort-table/issues/1
@@ -30,26 +31,17 @@ workflows:
   - id: curacao-turtle-monitoring
     repo: wildlife-dynamics/curacao-turtle_monitoring
     epic: https://github.com/wildlife-dynamics/curacao-turtle_monitoring/issues/1
-  # APN hosts two workflows in one repo; both rows share its spec.yaml and issue list.
-  - id: apn-exotic-animal-control
-    repo: wildlife-dynamics/APN
-    epic: https://github.com/wildlife-dynamics/APN/issues/180
-  - id: apn-weapon-use-report
-    repo: wildlife-dynamics/APN
-    epic: https://github.com/wildlife-dynamics/APN/issues/164
   - id: dr-whale-sightings
     repo: wildlife-dynamics/Dominican.Republic-Whale_Sighting
     epic: https://github.com/wildlife-dynamics/Dominican.Republic-Whale_Sighting/issues/1
   - id: latam-patrol-summary
     repo: wildlife-dynamics/latam-patrol_summary
     epic: https://github.com/wildlife-dynamics/latam-patrol_summary/issues/2
-  - id: eden-community-engagement
-    repo: wildlife-dynamics/eden
-    epic: https://github.com/wildlife-dynamics/eden/issues/1
   - id: speedmap
     repo: wildlife-dynamics/speedmap
   - id: tahmo-wx
     repo: wildlife-dynamics/tahmo-wx
+    epic: https://github.com/wildlife-dynamics/tahmo-wx/issues/19
   - id: wt-individual-event
     repo: wildlife-dynamics/wt-individual-event
   - id: mep-subject-tracking

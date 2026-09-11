@@ -33,6 +33,12 @@ def test_load_registry_rejects_duplicate_id(tmp_path):
         load_registry(path)
 
 
+def test_load_registry_rejects_repo_used_by_two_ids(tmp_path):
+    path = write_registry(tmp_path, [{"id": "a", "repo": "org/shared"}, {"id": "b", "repo": "Org/Shared"}])
+    with pytest.raises(RegistryError, match="used by both"):
+        load_registry(path)
+
+
 def test_load_registry_rejects_bad_epic_url(tmp_path):
     path = write_registry(tmp_path, [{"id": "a", "repo": "org/a", "epic": "https://github.com/org/a/pull/1"}])
     with pytest.raises(RegistryError, match="epic"):
