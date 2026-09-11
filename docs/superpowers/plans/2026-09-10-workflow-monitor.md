@@ -102,7 +102,7 @@ Expected: solves and writes `monitor/pixi.lock`. Commit the lock.
 # issue in GitHub Projects (https://github.com/orgs/wildlife-dynamics/projects/9), not here.
 workflows:
   - id: wt-ndvi
-    repo: wildlife-dynamics/wt-ndvi
+    repo: wildlife-dynamics/ndvi
     epic: https://github.com/wildlife-dynamics/ndvi/issues/22
   - id: wt-download-events
     repo: wildlife-dynamics/wt-download-events
