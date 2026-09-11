@@ -46,3 +46,113 @@ workflows:
   - id: eden-community-engagement
     repo: wildlife-dynamics/eden
     epic: https://github.com/wildlife-dynamics/eden/issues/1
+  - id: speedmap
+    repo: wildlife-dynamics/speedmap
+  - id: tahmo-wx
+    repo: wildlife-dynamics/tahmo-wx
+  - id: wt-individual-event
+    repo: wildlife-dynamics/wt-individual-event
+  - id: mep-subject-tracking
+    repo: wildlife-dynamics/mep-subject-tracking
+  - id: lg-patrols-effort
+    repo: wildlife-dynamics/lg-patrols-effort
+  - id: lg-vehicles-report
+    repo: wildlife-dynamics/lg-vehicles-report
+  - id: lg-collared-report
+    repo: wildlife-dynamics/lg-collared-report
+  - id: mep-monthly-report
+    repo: wildlife-dynamics/mep-monthly-report
+  - id: mt-wildlife
+    repo: wildlife-dynamics/mt-wildlife
+  - id: wt-hansen-deforestation
+    repo: wildlife-dynamics/wt-hansen-deforestation
+  - id: mt-rhino
+    repo: wildlife-dynamics/mt-rhino
+  - id: mt-security
+    repo: wildlife-dynamics/mt-security
+  - id: mt-tourism
+    repo: wildlife-dynamics/mt-tourism
+  - id: ste-mapbook
+    repo: wildlife-dynamics/ste-mapbook
+  - id: aerial-survey-roi
+    repo: wildlife-dynamics/aerial-survey-roi
+  - id: ste-general
+    repo: wildlife-dynamics/ste-general
+  - id: bl-weather-report
+    repo: wildlife-dynamics/bl-weather-report
+  - id: bl-pcf-report
+    repo: wildlife-dynamics/bl-pcf-report
+  - id: bl-crop-raid-report
+    repo: wildlife-dynamics/bl-crop-raid-report
+  - id: ate_survey
+    repo: wildlife-dynamics/ate_survey
+  - id: mnc-logistics-report
+    repo: wildlife-dynamics/mnc-logistics-report
+  - id: mnc-weather-report
+    repo: wildlife-dynamics/mnc-weather-report
+  - id: mnc-livestock-report
+    repo: wildlife-dynamics/mnc-livestock-report
+  - id: mnc-patrol-effort
+    repo: wildlife-dynamics/mnc-patrol-effort
+  - id: mnc-wildlife-report
+    repo: wildlife-dynamics/mnc-wildlife-report
+  - id: wt-source-voltage
+    repo: wildlife-dynamics/wt-source-voltage
+  - id: mnc-overall-report
+    repo: wildlife-dynamics/mnc-overall-report
+  - id: bh_village_games
+    repo: wildlife-dynamics/bh_village_games
+  - id: events-attach-image
+    repo: wildlife-dynamics/events-attach-image
+  - id: kbopt_overall_report
+    repo: wildlife-dynamics/kbopt_overall_report
+  - id: lg-predation-report
+    repo: wildlife-dynamics/lg-predation-report
+  - id: bh_antipoaching
+    repo: wildlife-dynamics/bh_antipoaching
+  - id: taaf_snake_sightings
+    repo: wildlife-dynamics/taaf_snake_sightings
+  - id: dsc-analysis
+    repo: wildlife-dynamics/dsc-analysis
+  - id: create-vcf-basemap
+    repo: wildlife-dynamics/create-vcf-basemap
+  - id: ops-dashboard
+    repo: wildlife-dynamics/ops-dashboard
+  - id: patrol-field-effort
+    repo: wildlife-dynamics/patrol-field-effort
+  - id: animate-subject-tracks
+    repo: wildlife-dynamics/animate-subject-tracks
+  - id: eden-community_engagement
+    repo: wildlife-dynamics/eden-community_engagement
+  - id: individual-ranger
+    repo: wildlife-dynamics/individual-ranger
+  - id: wwf-traffic
+    repo: wildlife-dynamics/wwf-traffic
+  - id: home-range
+    repo: wildlife-dynamics/home-range
+  - id: patrol-track-density-map
+    repo: wildlife-dynamics/patrol-track-density-map
+  - id: event-sum-map
+    repo: wildlife-dynamics/event-sum-map
+  - id: dsc-weather
+    repo: wildlife-dynamics/dsc-weather
+  - id: patrol-encounter-rate-stats
+    repo: wildlife-dynamics/patrol-encounter-rate-stats
+  - id: patrol-chart
+    repo: wildlife-dynamics/patrol-chart
+  - id: curacao-nest_hatching
+    repo: wildlife-dynamics/curacao-nest_hatching
+  - id: curacao-turtle_care
+    repo: wildlife-dynamics/curacao-turtle_care
+  - id: ICMBio-patrol_analysis
+    repo: wildlife-dynamics/ICMBio-patrol_analysis
+  - id: patrols
+    repo: ecoscope-platform-workflows-releases/patrols
+  - id: events
+    repo: ecoscope-platform-workflows-releases/events
+  - id: subject-tracking
+    repo: ecoscope-platform-workflows-releases/subject-tracking
+  - id: smart-patrols
+    repo: ecoscope-platform-workflows-releases/smart-patrols
+  - id: event-details
+    repo: ecoscope-platform-workflows-releases/event-details
