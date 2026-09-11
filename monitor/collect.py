@@ -7,13 +7,64 @@ from pathlib import Path
 
 import yaml
 
-from epic import fetch_epic
+from epic import build_epic_record, continue_sub_issues
 from gh import GitHubClient, GitHubError, NotFound
 from metadata import RegistryError, load_indicators, load_registry, normalize_outputs, parse_version
 
 CATALOG_URL = "https://storage.googleapis.com/ecoscope-io-storage-public/ecoscope-desktop/hardcoded-template-catalog/workflow_templates.json"
 WEB_BRANCH = "ecoscope-web"
 HERE = Path(__file__).parent
+
+# One query per repo: repo info, spec.yaml/pixi.toml on the default branch, the
+# ecoscope-web branch's existence and spec.yaml, and the latest Workflow-typed
+# issue (the epic) with its project fields and first page of sub-issues.
+REPO_QUERY = """
+query($owner: String!, $name: String!) {
+  repository(owner: $owner, name: $name) {
+    nameWithOwner
+    isPrivate
+    isArchived
+    defaultBranchRef { name }
+    spec: object(expression: "HEAD:spec.yaml") { ... on Blob { text } }
+    pixi: object(expression: "HEAD:pixi.toml") { ... on Blob { text } }
+    webBranch: ref(qualifiedName: "refs/heads/ecoscope-web") { name }
+    webSpec: object(expression: "refs/heads/ecoscope-web:spec.yaml") { ... on Blob { text } }
+    epics: issues(first: 1, filterBy: {type: "Workflow"}, orderBy: {field: CREATED_AT, direction: DESC}) {
+      nodes {
+        number title state url
+        issueType { name }
+        assignees(first: 10) { nodes { login } }
+        subIssuesSummary { total completed }
+        projectItems(first: 20) {
+          nodes {
+            project { number title url }
+            fieldValues(first: 30) {
+              nodes {
+                ... on ProjectV2ItemFieldSingleSelectValue {
+                  name
+                  field { ... on ProjectV2SingleSelectField { name } }
+                }
+                ... on ProjectV2ItemFieldTextValue {
+                  text
+                  field { ... on ProjectV2Field { name } }
+                }
+              }
+            }
+          }
+        }
+        subIssues(first: 100) {
+          pageInfo { hasNextPage endCursor }
+          nodes {
+            number title state url
+            issueType { name }
+            repository { nameWithOwner }
+          }
+        }
+      }
+    }
+  }
+}
+"""
 
 
 def fetch_catalog(session):
@@ -56,19 +107,9 @@ def _read_version(client, repo, ref, path):
     return parse_version(client.get_text(repo, path, ref))
 
 
-def _branch_exists(client, repo, branch):
-    try:
-        client.get(f"/repos/{repo}/branches/{branch}")
-        return True
-    except NotFound:
-        return False
-
-
-def _read_metadata(client, repo, ref):
-    try:
-        spec = yaml.safe_load(client.get_text(repo, "spec.yaml", ref)) or {}
-    except NotFound:
-        return None, [], False
+def _parse_spec_text(text):
+    """Return (meta, task_libraries) parsed from spec.yaml text. Raises yaml.YAMLError."""
+    spec = yaml.safe_load(text or "") or {}
     meta = spec.get("metadata") if isinstance(spec, dict) else None
     requirements = spec.get("requirements") if isinstance(spec, dict) else None
     requirements = requirements if isinstance(requirements, list) else []
@@ -77,16 +118,12 @@ def _read_metadata(client, repo, ref):
         for r in requirements
         if isinstance(r, dict)
     ]
-    return meta, task_libraries, True
+    return meta, task_libraries
 
 
-def _read_wt_compiler_version(client, repo, ref):
+def _parse_wt_compiler_version(text):
     try:
-        text = client.get_text(repo, "pixi.toml", ref)
-    except NotFound:
-        return None
-    try:
-        data = tomllib.loads(text)
+        data = tomllib.loads(text or "")
     except tomllib.TOMLDecodeError:
         return None
     deps = data.get("dependencies") if isinstance(data, dict) else None
@@ -157,54 +194,68 @@ def collect_workflow(entry, client, catalog, vocab):
     record = _empty_record(entry)
     errors = record["errors"]
 
-    if entry.get("epic"):
-        try:
-            record["epic"], epic_errors = fetch_epic(client, entry["epic"])
-            errors.extend(epic_errors)
-        except Exception as e:  # noqa: BLE001 - keep other fields even if the epic lookup breaks
-            errors.append(f"epic: {e}")
-
     repo = entry.get("repo")
     if not repo:
         return record
+    owner, _, name = repo.partition("/")
 
     try:
-        info = client.get(f"/repos/{repo}")
-    except NotFound:
-        errors.append(f"repo not found: {repo}")
-        return record
+        data = client.graphql(REPO_QUERY, {"owner": owner, "name": name})
     except Exception as e:  # noqa: BLE001
         errors.append(f"repo: {e}")
         return record
-    if info.get("private"):
+    info = data.get("repository")
+    if info is None:
+        errors.append(f"repo not found: {repo}")
+        return record
+    if info.get("isPrivate"):
         print(f"warning: {entry['id']}: repo {repo} is private, excluded", file=sys.stderr)
         return None
-    record["repo"] = info.get("full_name") or repo
-    record["archived"] = bool(info.get("archived"))
-    branch = info.get("default_branch") or "main"
-    web_exists = _branch_exists(client, repo, WEB_BRANCH)
+    record["repo"] = info.get("nameWithOwner") or repo
+    record["archived"] = bool(info.get("isArchived"))
+    branch = (info.get("defaultBranchRef") or {}).get("name") or "main"
+    web_exists = info.get("webBranch") is not None
+
+    epic_nodes = (info.get("epics") or {}).get("nodes") or []
+    if epic_nodes:
+        issue = epic_nodes[0]
+        try:
+            record["epic"], epic_errors = build_epic_record(issue, f"https://github.com/{record['repo']}/issues/{issue['number']}")
+            errors.extend(epic_errors)
+            sub_info = (issue.get("subIssues") or {}).get("pageInfo") or {}
+            if sub_info.get("hasNextPage"):
+                more = continue_sub_issues(client, owner, name, issue["number"], sub_info["endCursor"])
+                record["epic"]["sub_issues"].extend(more)
+        except Exception as e:  # noqa: BLE001 - keep other fields even if the epic lookup breaks
+            errors.append(f"epic: {e}")
 
     meta = None
     task_libraries = []
-    try:
-        meta, task_libraries, spec_found = _read_metadata(client, repo, branch)
-    except Exception as e:  # noqa: BLE001
-        errors.append(f"spec.yaml: {e}")
-        spec_found = False
-    record["spec_missing"] = not spec_found
-    record["metadata_source"] = branch if isinstance(meta, dict) else None
+    metadata_source = None
+    spec_blob = info.get("spec")
+    if spec_blob is not None:
+        try:
+            meta, task_libraries = _parse_spec_text(spec_blob.get("text"))
+            record["spec_missing"] = False
+            if isinstance(meta, dict):
+                metadata_source = branch
+        except yaml.YAMLError as e:
+            errors.append(f"spec.yaml: {e}")
 
     if not isinstance(meta, dict) and web_exists:
-        try:
-            web_meta, web_task_libraries, _ = _read_metadata(client, repo, WEB_BRANCH)
-        except Exception as e:  # noqa: BLE001
-            errors.append(f"spec.yaml@{WEB_BRANCH}: {e}")
-            web_meta, web_task_libraries = None, []
-        if isinstance(web_meta, dict):
-            meta = web_meta
-            task_libraries = web_task_libraries
-            record["metadata_source"] = WEB_BRANCH
+        web_spec_blob = info.get("webSpec")
+        if web_spec_blob is not None:
+            try:
+                web_meta, web_task_libraries = _parse_spec_text(web_spec_blob.get("text"))
+            except yaml.YAMLError as e:
+                errors.append(f"spec.yaml@{WEB_BRANCH}: {e}")
+                web_meta, web_task_libraries = None, []
+            if isinstance(web_meta, dict):
+                meta = web_meta
+                task_libraries = web_task_libraries
+                metadata_source = WEB_BRANCH
 
+    record["metadata_source"] = metadata_source
     record["task_libraries"] = task_libraries
 
     if isinstance(meta, dict):
@@ -214,12 +265,11 @@ def collect_workflow(entry, client, catalog, vocab):
         record["maintainers"] = [m for m in meta.get("maintainers") or [] if isinstance(m, dict)]
         record["outputs"], record["indicators"], record["unknown_indicators"] = normalize_outputs(meta, record["name"], vocab)
 
-    try:
-        record["wt_compiler_version"] = _read_wt_compiler_version(client, repo, branch)
-    except Exception as e:  # noqa: BLE001
-        errors.append(f"pixi.toml: {e}")
+    pixi_blob = info.get("pixi")
+    if pixi_blob is not None:
+        record["wt_compiler_version"] = _parse_wt_compiler_version(pixi_blob.get("text"))
 
-    canonical = (info.get("full_name") or repo).lower()
+    canonical = (info.get("nameWithOwner") or repo).lower()
     version_path = catalog.get(canonical)
     try:
         if not version_path:

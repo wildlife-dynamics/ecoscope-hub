@@ -1,47 +1,37 @@
-# One entry per ecoscope workflow. Status, priority, and the Project field are managed on the epic
-# issue in GitHub Projects (https://github.com/orgs/wildlife-dynamics/projects/9), not here.
+# One entry per ecoscope workflow: just id + repo. The epic is resolved dynamically as the
+# repo's most-recently-created issue of type "Workflow" (open or closed) — there is no epic:
+# field here. Status, priority, and the Project field are managed on that issue in GitHub
+# Projects (https://github.com/orgs/wildlife-dynamics/projects/9). Each repo backs at most
+# one workflow.
 workflows:
   - id: ndvi
     repo: wildlife-dynamics/ndvi
-    epic: https://github.com/wildlife-dynamics/ndvi/issues/22
   - id: wt-download-events
     repo: wildlife-dynamics/wt-download-events
-    epic: https://github.com/wildlife-dynamics/wt-download-events/issues/33
   - id: wt-download-patrols
     repo: wildlife-dynamics/wt-download-patrols
-    epic: https://github.com/wildlife-dynamics/wt-download-patrols/issues/18
   - id: wt-download-subject-tracks
     repo: wildlife-dynamics/wt-download-subject-tracks
-    epic: https://github.com/wildlife-dynamics/wt-download-subject-tracks/issues/21
   - id: wt-hydrological-monitoring
     repo: wildlife-dynamics/wt-hydrological-monitoring
-    epic: https://github.com/wildlife-dynamics/wt-hydrological-monitoring/issues/13
   - id: patrol-effort-table
     repo: wildlife-dynamics/patrol-effort-table
-    epic: https://github.com/wildlife-dynamics/patrol-effort-table/issues/1
   - id: mt-patrols
     repo: wildlife-dynamics/mt-patrols
-    epic: https://github.com/wildlife-dynamics/mt-patrols/issues/4
   - id: patrol-encounter-rate-map
     repo: wildlife-dynamics/patrol-encounter-rate-map
-    epic: https://github.com/wildlife-dynamics/patrol-encounter-rate-map/issues/3
   - id: namibia
     repo: wildlife-dynamics/namibia
-    epic: https://github.com/wildlife-dynamics/namibia/issues/164
   - id: curacao-turtle-monitoring
     repo: wildlife-dynamics/curacao-turtle_monitoring
-    epic: https://github.com/wildlife-dynamics/curacao-turtle_monitoring/issues/1
   - id: dr-whale-sightings
     repo: wildlife-dynamics/Dominican.Republic-Whale_Sighting
-    epic: https://github.com/wildlife-dynamics/Dominican.Republic-Whale_Sighting/issues/1
   - id: latam-patrol-summary
     repo: wildlife-dynamics/latam-patrol_summary
-    epic: https://github.com/wildlife-dynamics/latam-patrol_summary/issues/2
   - id: speedmap
     repo: wildlife-dynamics/speedmap
   - id: tahmo-wx
     repo: wildlife-dynamics/tahmo-wx
-    epic: https://github.com/wildlife-dynamics/tahmo-wx/issues/19
   - id: wt-individual-event
     repo: wildlife-dynamics/wt-individual-event
   - id: mep-subject-tracking
@@ -56,18 +46,14 @@ workflows:
     repo: wildlife-dynamics/mep-monthly-report
   - id: mt-wildlife
     repo: wildlife-dynamics/mt-wildlife
-    epic: https://github.com/wildlife-dynamics/mt-wildlife/issues/9
   - id: wt-hansen-deforestation
     repo: wildlife-dynamics/wt-hansen-deforestation
   - id: mt-rhino
     repo: wildlife-dynamics/mt-rhino
-    epic: https://github.com/wildlife-dynamics/mt-rhino/issues/6
   - id: mt-security
     repo: wildlife-dynamics/mt-security
-    epic: https://github.com/wildlife-dynamics/mt-security/issues/3
   - id: mt-tourism
     repo: wildlife-dynamics/mt-tourism
-    epic: https://github.com/wildlife-dynamics/mt-tourism/issues/3
   - id: ste-mapbook
     repo: wildlife-dynamics/ste-mapbook
   - id: aerial-survey-roi
@@ -128,18 +114,14 @@ workflows:
     repo: wildlife-dynamics/home-range
   - id: patrol-track-density-map
     repo: wildlife-dynamics/patrol-track-density-map
-    epic: https://github.com/wildlife-dynamics/patrol-track-density-map/issues/5
   - id: event-sum-map
     repo: wildlife-dynamics/event-sum-map
-    epic: https://github.com/wildlife-dynamics/event-sum-map/issues/5
   - id: dsc-weather
     repo: wildlife-dynamics/dsc-weather
   - id: patrol-encounter-rate-stats
     repo: wildlife-dynamics/patrol-encounter-rate-stats
-    epic: https://github.com/wildlife-dynamics/patrol-encounter-rate-stats/issues/6
   - id: patrol-chart
     repo: wildlife-dynamics/patrol-chart
-    epic: https://github.com/wildlife-dynamics/patrol-chart/issues/4
   - id: curacao-nest_hatching
     repo: wildlife-dynamics/curacao-nest_hatching
   - id: curacao-turtle_care

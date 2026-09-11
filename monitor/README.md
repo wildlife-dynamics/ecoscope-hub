@@ -8,14 +8,16 @@ Design: `docs/superpowers/specs/2026-09-10-workflow-monitor-design.md`.
 
 ## Add or retire a workflow
 
-Edit `registry.yaml`. Each entry is `id`, `repo`, and the `epic` issue URL. Status, priority,
-size, and the `Project` field are managed on the epic in GitHub Projects, not here. Committing
+Edit `registry.yaml`. Each entry is just `id` + `repo` — no `epic:` field. The epic is
+resolved dynamically as the repo's most-recently-created issue of type "Workflow"; each repo
+may back only one workflow (the registry rejects a repo used by two ids). Status, priority,
+and the `Project` field are managed on that issue in GitHub Projects, not here. Committing
 to `main` rebuilds the site.
 
 To find workflow repos that are not registered yet:
 
     pixi run discover            # report only
-    pixi run discover -- --add   # append stubs (fill in the epic afterwards)
+    pixi run discover -- --add   # append stubs; file the Workflow-typed epic issue afterwards
 
 ## Run locally
 

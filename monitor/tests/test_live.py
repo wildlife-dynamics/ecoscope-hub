@@ -15,7 +15,7 @@ def test_live_ndvi_resolves_epic():
     client = GitHubClient()
     catalog = fetch_catalog(client.session)
     vocab = load_indicators(os.path.join(os.path.dirname(__file__), "..", "indicators.yaml"))
-    entry = {"id": "ndvi", "repo": "wildlife-dynamics/ndvi", "epic": "https://github.com/wildlife-dynamics/ndvi/issues/22"}
+    entry = {"id": "ndvi", "repo": "wildlife-dynamics/ndvi"}
     record = collect_workflow(entry, client, catalog, vocab)
     assert record["errors"] == []
     assert record["epic"]["type"] == "Workflow"
