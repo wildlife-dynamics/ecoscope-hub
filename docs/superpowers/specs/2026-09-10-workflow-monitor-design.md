@@ -225,8 +225,8 @@ registry or an uncaught exception.
 
 ## Action — `.github/workflows/monitor.yml`
 
-Triggers: cron every 6 hours; push to `main` touching `monitor/**` or the workflow file;
-`workflow_dispatch`.
+Triggers: cron every hour; push to `main` touching `monitor/**` or the workflow file;
+`workflow_dispatch` (human-triggerable from the Actions UI or `gh workflow run monitor.yml`).
 
 Steps: checkout → setup-pixi → `pytest monitor/tests` → `discover.py --json` →
 `collect.py --out build/data.json` → copy `monitor/index.html` to `build/` →
