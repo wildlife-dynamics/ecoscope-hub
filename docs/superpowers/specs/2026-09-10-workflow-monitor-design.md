@@ -253,9 +253,10 @@ of active filters, laid out as a 6-column grid. Row one is six equal-width stat 
 workflow templates, unique output names, on Desktop, on Web, and In progress / In review (the
 last two count epics by board Status). Row two holds two charts, each spanning three columns
 so the row totals the same width as row one: a workflows-by-Project donut (legend, per-slice
-tooltips, smallest slices folded into "Other" past 7 distinct projects) and a workflows-by-
-priority bar chart (`P0`..`P3` plus "No priority", bars coloured to match the table's priority
-chips).
+tooltips, smallest slices folded into "Other" past 7 distinct projects) and an "Open Workflows
+by Priority" bar chart (`P0`..`P3` plus "No priority", bars coloured to match the table's
+priority chips) that excludes workflows whose epic status is `Done` — it counts only work
+still outstanding.
 
 **Tabs**: Workflows, Outputs.
 

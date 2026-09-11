@@ -112,7 +112,7 @@
     </div>
     <div class="stat-chart chart-span">
       <div class="donut-col">
-        <h3>Workflows by priority</h3>
+        <h3>Open Workflows by Priority</h3>
         <div class="bars" id="priority-bars"></div>
       </div>
     </div>
@@ -381,6 +381,7 @@
     const priorityCounts = new Map(PRIORITY_ORDER.map(p => [p, 0]));
     priorityCounts.set('No priority', 0);
     for (const w of state.workflows) {
+      if (w.epic?.status === 'Done') continue;
       const p = w.epic?.priority;
       const key = PRIORITY_ORDER.includes(p) ? p : 'No priority';
       priorityCounts.set(key, priorityCounts.get(key) + 1);
