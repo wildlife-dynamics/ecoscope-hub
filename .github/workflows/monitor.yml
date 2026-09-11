@@ -8,6 +8,10 @@ on:
     paths:
       - "monitor/**"
       - ".github/workflows/monitor.yml"
+  pull_request:
+    paths:
+      - "monitor/**"
+      - ".github/workflows/monitor.yml"
   workflow_dispatch:
 
 permissions:
@@ -32,7 +36,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: prefix-dev/setup-pixi@v0.8.10
         with:
-          pixi-version: v0.57.0
+          pixi-version: v0.80.0
           manifest-path: monitor/pixi.toml
       - name: Test
         run: pixi run pytest -q tests --ignore=tests/test_live.py
@@ -48,6 +52,7 @@ jobs:
 
   deploy:
     needs: build
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
