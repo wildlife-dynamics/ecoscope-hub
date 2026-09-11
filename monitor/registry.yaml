@@ -132,14 +132,18 @@ workflows:
     repo: wildlife-dynamics/home-range
   - id: patrol-track-density-map
     repo: wildlife-dynamics/patrol-track-density-map
+    epic: https://github.com/wildlife-dynamics/patrol-track-density-map/issues/5
   - id: event-sum-map
     repo: wildlife-dynamics/event-sum-map
+    epic: https://github.com/wildlife-dynamics/event-sum-map/issues/5
   - id: dsc-weather
     repo: wildlife-dynamics/dsc-weather
   - id: patrol-encounter-rate-stats
     repo: wildlife-dynamics/patrol-encounter-rate-stats
+    epic: https://github.com/wildlife-dynamics/patrol-encounter-rate-stats/issues/6
   - id: patrol-chart
     repo: wildlife-dynamics/patrol-chart
+    epic: https://github.com/wildlife-dynamics/patrol-chart/issues/4
   - id: curacao-nest_hatching
     repo: wildlife-dynamics/curacao-nest_hatching
   - id: curacao-turtle_care
