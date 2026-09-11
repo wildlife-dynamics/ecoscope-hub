@@ -1,0 +1,32 @@
+# Canonical indicator ids. The collector maps every indicator named in a workflow's spec
+# metadata to one of these via label or alias (case-insensitive). Unknown names are kept
+# verbatim and flagged on the monitor.
+indicators:
+  ndvi:
+    label: NDVI
+    description: Normalized Difference Vegetation Index from satellite imagery
+    aliases: [vegetation index, vegetation health]
+  patrol-distance:
+    label: Patrol distance
+    description: Distance covered by patrols over the period
+    aliases: [distance patrolled, patrol km]
+  patrol-effort:
+    label: Patrol effort
+    description: Patrol time, count, or coverage as an effort measure
+    aliases: [patrol time, patrol hours, patrol count]
+  encounter-rate:
+    label: Encounter rate
+    description: Events observed per unit of patrol effort
+    aliases: [encounter rates]
+  trajectory:
+    label: Trajectory
+    description: Subject or vehicle movement tracks
+    aliases: [tracks, movement, subject tracks]
+  event-count:
+    label: Event count
+    description: Number of events by type, time, or area
+    aliases: [events, event counts, event summary]
+  water-level:
+    label: Water level
+    description: Hydrological water level or flow measurements
+    aliases: [river level, flow, hydrology]

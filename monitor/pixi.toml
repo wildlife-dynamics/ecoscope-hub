@@ -1,0 +1,15 @@
+[workspace]
+name = "ecoscope-workflow-monitor"
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "linux-64"]
+
+[dependencies]
+python = ">=3.11"
+requests = ">=2.31"
+pyyaml = ">=6.0"
+pytest = ">=8"
+
+[tasks]
+test = "pytest -q"
+collect = "python collect.py"
+discover = "python discover.py"

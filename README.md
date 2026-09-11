@@ -2,6 +2,8 @@
 
 CLI tool for creating and managing ecoscope workflow repositories with automated setup for collaborators and branch protection.
 
+> **Workflow monitor:** the fleet status page lives in [`monitor/`](monitor/README.md).
+
 ## Features
 
 - 🚀 **Create repositories from template** - Uses `wildlife-dynamics/wt-template`
