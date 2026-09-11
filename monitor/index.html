@@ -397,7 +397,9 @@
   function renderUnregistered() {
     const ul = $('#unreg ul');
     $('#unreg summary').textContent = `Unregistered workflow repos (${state.unregistered.length})`;
-    ul.innerHTML = state.unregistered.map(u => `<li>${link('https://github.com/' + u.repo, u.repo)}</li>`).join('') || '<li class="muted">None.</li>';
+    ul.innerHTML = state.unregistered.map(u => `<li>${link('https://github.com/' + u.repo, u.repo)}
+      ${u.has_workflow_issue ? '<span class="badge">has Workflow issue</span>' : ''}
+      ${u.has_metadata ? '<span class="badge">has metadata</span>' : ''}</li>`).join('') || '<li class="muted">None.</li>';
   }
 
   function showTab(name) {

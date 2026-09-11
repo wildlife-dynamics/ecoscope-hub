@@ -1,4 +1,5 @@
 import argparse
+import base64
 import json
 import re
 import sys
@@ -28,6 +29,26 @@ def has_spec(client, repo):
         return True
     except NotFound:
         return False
+
+
+def has_metadata(client, repo):
+    try:
+        data = client.get(f"/repos/{repo}/contents/spec.yaml")
+    except NotFound:
+        return False
+    content = data.get("content") if isinstance(data, dict) else None
+    if not content:
+        return False
+    try:
+        spec = yaml.safe_load(base64.b64decode(content).decode("utf-8", errors="replace")) or {}
+    except (ValueError, yaml.YAMLError):
+        return False
+    return isinstance(spec, dict) and isinstance(spec.get("metadata"), dict)
+
+
+def has_workflow_issue(client, repo):
+    result = client.get("/search/issues", params={"q": f"repo:{repo} type:Workflow"})
+    return (result.get("total_count") or 0) > 0
 
 
 def diff(entries, org_repos, spec_flags):
@@ -100,12 +121,24 @@ def main(argv=None):
             spec_flags[r["repo"]] = False
     result = diff(entries, org_repos, spec_flags)
 
+    for item in result["missing"]:
+        try:
+            item["has_workflow_issue"] = has_workflow_issue(client, item["repo"])
+        except GitHubError as e:
+            print(f"warning: could not check for a Workflow issue on {item['repo']}: {e}", file=sys.stderr)
+            item["has_workflow_issue"] = False
+        try:
+            item["has_metadata"] = has_metadata(client, item["repo"])
+        except GitHubError as e:
+            print(f"warning: could not read metadata for {item['repo']}: {e}", file=sys.stderr)
+            item["has_metadata"] = False
+
     if args.json:
         print(json.dumps(result["missing"]))
     else:
         print(f"Workflow repos not in registry ({len(result['missing'])}):")
         for item in result["missing"]:
-            print(f"  {item['repo']}")
+            print(f"  {item['repo']} (workflow issue: {item['has_workflow_issue']}, metadata: {item['has_metadata']})")
         print(f"Registry entries whose repo is gone or archived ({len(result['gone'])}):")
         for wid in result["gone"]:
             print(f"  {wid}")

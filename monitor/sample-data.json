@@ -1,7 +1,7 @@
 {
   "generated_at": "2026-09-10T12:00:00Z",
   "warnings": [],
-  "unregistered": [{"repo": "wildlife-dynamics/mnc-patrol-effort"}],
+  "unregistered": [{"repo": "wildlife-dynamics/mnc-patrol-effort", "has_workflow_issue": true, "has_metadata": false}],
   "workflows": [
     {
       "id": "ndvi", "repo": "wildlife-dynamics/ndvi",

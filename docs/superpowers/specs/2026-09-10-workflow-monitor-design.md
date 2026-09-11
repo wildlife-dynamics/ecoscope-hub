@@ -125,7 +125,7 @@ get `spec_missing: true`. Both still produce a row.
 ```json
 {
   "generated_at": "2026-09-10T12:00:00Z",
-  "unregistered": [{"repo": "wildlife-dynamics/foo"}],
+  "unregistered": [{"repo": "wildlife-dynamics/foo", "has_workflow_issue": false, "has_metadata": false}],
   "workflows": [
     {
       "id": "ndvi", "repo": "wildlife-dynamics/ndvi",
@@ -215,7 +215,12 @@ registry or an uncaught exception.
    registry, registry entries whose repo is gone or archived, org repos without `spec.yaml`.
 4. `--add` appends missing workflow repos to `registry.yaml` as stubs with `id` and `repo`
    and `epic` left empty (the page badges entries without an epic). Default is report-only.
-5. `--json` prints the missing group for the collector, which embeds it as `unregistered`.
+5. Each missing repo is enriched with `has_workflow_issue` (GitHub search,
+   `repo:<repo> type:Workflow`, `total_count > 0` — an epic already exists even though the repo
+   isn't registered yet) and `has_metadata` (`spec.yaml`'s `metadata:` block is present). Both
+   default to `false` on any read failure (warned, not fatal).
+6. `--json` prints the missing group (with those two extra fields) for the collector, which
+   embeds it as `unregistered`; the page shows both as badges next to the repo link.
 
 ## Action — `.github/workflows/monitor.yml`
 
@@ -283,7 +288,8 @@ chips).
   opens its modal.
 
 **Unregistered panel**: collapsed section at the bottom listing `unregistered` repos with a
-link to each and to `registry.yaml`.
+link to each, a badge when `has_workflow_issue` is true ("has Workflow issue") and when
+`has_metadata` is true ("has metadata"), and a link to `registry.yaml`.
 
 **Error states**: failed `data.json` load shows a message, not an empty table.
 
@@ -301,7 +307,9 @@ link to each and to `registry.yaml`.
   typed issue; `task_libraries` read from `spec.yaml`'s `requirements:`; `wt_compiler_version`
   read from `pixi.toml`'s `[dependencies]`, null (not an error) when the file or key is absent;
   priority/status sort order helper.
-- `monitor/tests/test_discover.py` — root `spec.yaml` detection; three-group diff.
+- `monitor/tests/test_discover.py` — root `spec.yaml` detection; three-group diff;
+  `has_metadata` true/false on the `metadata:` block, false when `spec.yaml` is absent;
+  `has_workflow_issue` true/false on the search API's `total_count`.
 - One live smoke test, skipped without a token, running `collect.py --only ndvi` and
   asserting metadata and a desktop version are present.
 - `monitor/sample-data.json` committed for opening `index.html` locally.

@@ -1,9 +1,10 @@
+import base64
 import json
 
 import yaml
 
 from conftest import FakeResponse
-from discover import DEFAULT_ORGS, add_stubs, diff, has_spec, list_org_repos, main
+from discover import DEFAULT_ORGS, add_stubs, diff, has_metadata, has_spec, has_workflow_issue, list_org_repos, main
 from gh import API
 
 
@@ -21,6 +22,34 @@ def test_has_spec(client, session):
     session.add("GET", f"{API}/repos/wd/a/contents/spec.yaml", FakeResponse(200, {"name": "spec.yaml"}))
     assert has_spec(client, "wd/a") is True
     assert has_spec(client, "wd/b") is False
+
+
+def encoded(text):
+    return base64.b64encode(text.encode()).decode()
+
+
+def test_has_metadata_true_when_metadata_block_present(client, session):
+    session.add("GET", f"{API}/repos/wd/a/contents/spec.yaml", FakeResponse(200, {"content": encoded("metadata:\n  name: X\n")}))
+    assert has_metadata(client, "wd/a") is True
+
+
+def test_has_metadata_false_when_no_metadata_block(client, session):
+    session.add("GET", f"{API}/repos/wd/a/contents/spec.yaml", FakeResponse(200, {"content": encoded("id: x\n")}))
+    assert has_metadata(client, "wd/a") is False
+
+
+def test_has_metadata_false_when_spec_missing(client, session):
+    assert has_metadata(client, "wd/gone") is False
+
+
+def test_has_workflow_issue_true(client, session):
+    session.add("GET", f"{API}/search/issues", FakeResponse(200, {"total_count": 1, "items": [{"number": 22}]}))
+    assert has_workflow_issue(client, "wd/a") is True
+
+
+def test_has_workflow_issue_false(client, session):
+    session.add("GET", f"{API}/search/issues", FakeResponse(200, {"total_count": 0, "items": []}))
+    assert has_workflow_issue(client, "wd/a") is False
 
 
 def test_diff_groups():
@@ -56,11 +85,12 @@ def test_main_json_prints_missing(client, session, tmp_path, capsys, monkeypatch
     real = mod.GitHubClient
     monkeypatch.setattr(mod, "GitHubClient", lambda: real(token="t", session=session))
     session.add("GET", f"{API}/orgs/wd/repos", FakeResponse(200, [{"full_name": "wd/b", "private": False, "archived": False}]))
-    session.add("GET", f"{API}/repos/wd/b/contents/spec.yaml", FakeResponse(200, {}))
+    session.add("GET", f"{API}/repos/wd/b/contents/spec.yaml", FakeResponse(200, {"content": encoded("metadata:\n  name: X\n")}))
+    session.add("GET", f"{API}/search/issues", FakeResponse(200, {"total_count": 1, "items": [{"number": 1}]}))
     registry = tmp_path / "registry.yaml"
     registry.write_text("workflows:\n  - id: a\n    repo: wd/a\n")
     assert main(["--registry", str(registry), "--org", "wd", "--json"]) == 0
-    assert json.loads(capsys.readouterr().out) == [{"repo": "wd/b"}]
+    assert json.loads(capsys.readouterr().out) == [{"repo": "wd/b", "has_workflow_issue": True, "has_metadata": True}]
 
 
 def test_main_warns_and_continues_on_unreadable_repo(client, session, tmp_path, capsys, monkeypatch):
@@ -75,7 +105,7 @@ def test_main_warns_and_continues_on_unreadable_repo(client, session, tmp_path, 
     registry.write_text("workflows: []\n")
     assert main(["--registry", str(registry), "--org", "wd", "--json"]) == 0
     out, err = capsys.readouterr()
-    assert json.loads(out) == [{"repo": "wd/b"}]
+    assert json.loads(out) == [{"repo": "wd/b", "has_workflow_issue": False, "has_metadata": False}]
     assert "warning: could not read" in err
 
 
@@ -138,7 +168,7 @@ def test_main_continues_when_one_org_fails(client, session, tmp_path, capsys, mo
     registry.write_text("workflows: []\n")
     assert main(["--registry", str(registry), "--org", "one", "--org", "two", "--json"]) == 0
     out, err = capsys.readouterr()
-    assert json.loads(out) == [{"repo": "two/b"}]
+    assert json.loads(out) == [{"repo": "two/b", "has_workflow_issue": False, "has_metadata": False}]
     assert "could not list org repos for one" in err
 
 
