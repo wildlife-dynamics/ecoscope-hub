@@ -21,7 +21,8 @@ in-page editing) reuses the collector and page unchanged; it is out of scope her
 
 | Field group | Owner | Where |
 |---|---|---|
-| Which workflows exist, and the epic issue for each | ecoscope-hub | `monitor/registry.yaml` |
+| Which workflows exist | ecoscope-hub | `monitor/registry.yaml` (`id` + `repo` only) |
+| Which issue is the epic | derived | the repo's most-recently-created issue of type `Workflow`, via GraphQL |
 | Lifecycle status, priority, size, the board's `Project` text field, tracked sub-issues | GitHub Projects | the epic issue's project items (Wildlife Dynamics project #9 first) and sub-issues, via GraphQL |
 | Name, description, maintainers, outputs → indicators | each workflow repo | `metadata:` block in `spec.yaml` on the default branch, falling back to `ecoscope-web` when the default branch has no `metadata:` block; `metadata_source` records which |
 | Canonical indicator vocabulary | ecoscope-hub | `monitor/indicators.yaml` |
@@ -40,25 +41,33 @@ later addition, not built now.)
 
 ```yaml
 workflows:
-  - id: ndvi                          # unique key; display name fallback when metadata is absent
-    repo: wildlife-dynamics/ndvi      # optional when the workflow has no repo yet
-    epic: https://github.com/wildlife-dynamics/ndvi/issues/1   # the workflow's epic issue
+  - id: ndvi                     # unique key; display name fallback when metadata is absent
+    repo: wildlife-dynamics/ndvi  # required
 ```
 
-Nothing else is stored here. Status, priority, size, and the `Project` field are managed on
-the epic in GitHub Projects and read on every build.
+That's it — no `epic:` field. The epic is resolved dynamically (see below) as the repo's own
+most-recently-created issue of type "Workflow"; there is nothing to keep in sync here when an
+epic is filed, closed, or replaced.
 
-Validation (build fails on violation): duplicate `id`, `epic` not a GitHub issue URL, neither
-`repo` nor `epic` present, the same `repo` used by more than one entry (each repo backs at
-most one workflow).
+Validation (build fails on violation): duplicate `id`, `repo` missing, the same `repo` used by
+more than one entry — each repo backs at most one workflow, since "the repo's latest
+Workflow-typed issue" can't disambiguate two ids sharing a repo the way an explicit per-id
+epic URL once could.
 
 Editing: the page links each row to its epic (edit status/priority there) and to
 `registry.yaml` in GitHub's web editor (add or retire a workflow). Committing there triggers a
 rebuild. No in-page writes.
 
-## Epic — what is read from it
+## Epic — what is read from it, and how it's found
 
-One GraphQL query per epic (header `GraphQL-Features: issue_types`):
+**Resolution**: no registry field points at the epic. Instead, `collect.py` asks GitHub for
+the repo's issues filtered to `type: Workflow`, ordered by creation date descending, and takes
+the first (`issues(first: 1, filterBy: {type: "Workflow"}, orderBy: {field: CREATED_AT,
+direction: DESC})`, part of the same combined query described in the Collector section below).
+Open or closed doesn't matter — only the type and recency. A repo with no such issue simply
+has no epic (`epic: null`); nothing is treated as an error.
+
+**Fields read** from that issue:
 
 - `title`, `state`, `url`, `issueType.name`. Accepted types: `Workflow` and `Epic`; any other
   type is recorded as an error on the record but the fields are still used.
@@ -72,8 +81,8 @@ One GraphQL query per epic (header `GraphQL-Features: issue_types`):
   like status/priority/size.
 - `assignees`: the epic issue's own assignee logins (up to 10), shown as an Assignee column on
   the Workflows tab and in the modal's Epic block.
-- `subIssues` (paginated): number, title, state, url, repo, issue type; plus
-  `subIssuesSummary` (`total`, `completed`). Sub-issues may live in any repo.
+- `subIssues` (first 100, paginated further only if needed): number, title, state, url, repo,
+  issue type; plus `subIssuesSummary` (`total`, `completed`). Sub-issues may live in any repo.
 
 ## Indicator vocabulary — `monitor/indicators.yaml`
 
@@ -166,15 +175,41 @@ when the registry entry has no epic or it could not be read.
 Single file; dependencies `requests` and `pyyaml` from the hub pixi env. Per registry entry,
 in order, each step recording an error string and continuing on failure:
 
-0. Epic GraphQL query (see "Epic — what is read from it"). Missing or inaccessible epic →
-   error, `epic: null`, continue with the repo steps. Entries without `repo` stop here.
-1. `GET /repos/{repo}` → visibility, archived, default branch. 404 → error, skip the rest.
-   Private repo → warn and exclude the workflow from the snapshot entirely.
-2. `spec.yaml` from the default branch → parse `metadata:`; normalise outputs and indicators.
-   If the default branch has no `metadata:` block and branch `ecoscope-web` exists, read
-   `spec.yaml` there instead. `metadata_source` records which branch the metadata came from
-   (`null` when neither has one).
-3. Availability:
+0. Entries without `repo` stop here (empty record, no API calls at all).
+1. **One combined GraphQL query** (`REPO_QUERY`, header `GraphQL-Features: issue_types`) —
+   the single most important optimization in this file. Rather than one REST call apiece for
+   repo info, `spec.yaml`, `pixi.toml`, the `ecoscope-web` branch check, and a separate epic
+   lookup (5+ round trips), one query returns all of it together:
+   - `isPrivate`, `isArchived`, `defaultBranchRef.name`.
+   - `spec`/`pixi`: `object(expression: "HEAD:spec.yaml" | "HEAD:pixi.toml") { ... on Blob {
+     text } }` — `null` when the file doesn't exist, no separate existence check needed.
+   - `webBranch`: `ref(qualifiedName: "refs/heads/ecoscope-web")` — `null` when absent, no
+     separate branch-exists call needed.
+   - `webSpec`: the same `object(expression:)` trick against
+     `refs/heads/ecoscope-web:spec.yaml`, fetched unconditionally alongside everything else
+     (cheap — one more field on the same query) so the metadata fallback (step 2) needs no
+     second round trip either.
+   - `epics`: `issues(first: 1, filterBy: {type: "Workflow"}, orderBy: {field: CREATED_AT,
+     direction: DESC})` with the project fields, assignees, and first 100 sub-issues nested
+     inside — this is the dynamic epic resolution described above, folded into the same call.
+   A repo the token can't resolve (private, deleted, or renamed away) surfaces as a GraphQL
+   `errors` entry (`Could not resolve to a Repository...`) rather than an HTTP 404; either way
+   it's recorded as one error and the rest of that record stays empty. A private repo that
+   *does* resolve (`isPrivate: true`) is excluded from the snapshot entirely (return `None`,
+   warn to stderr) — same behavior as before, just detected from this query instead of a
+   separate REST call.
+2. Parse the `spec` blob's `metadata:` block; normalise outputs and indicators. If it has no
+   `metadata:` block and `webBranch` was non-null, parse the already-fetched `webSpec` blob
+   instead. `metadata_source` records which one won (`main`/other default branch name,
+   `ecoscope-web`, or `null` when neither has one). A YAML parse error on either blob is
+   recorded as an error and treated the same as "no metadata" for that source.
+3. `task_libraries` — the same `spec`/`webSpec` blob's top-level `requirements:` list (parsed
+   once alongside step 2, no extra call), one `{name, version, channel}` entry per requirement.
+4. `wt_compiler_version` — the `pixi` blob's `[dependencies].wt-compiler` pin (via stdlib
+   `tomllib`); `null` when the file, table, or key is absent (a real gap for pre-`wt`-tooling
+   repos, not an error).
+5. Availability — still REST, since the two things left (a repo-tree walk and named-workflow
+   CI runs) don't have as clean a GraphQL shape:
    - Fetch the Desktop catalog JSON once per run
      (`https://storage.googleapis.com/ecoscope-io-storage-public/ecoscope-desktop/hardcoded-template-catalog/workflow_templates.json`)
      and resolve each entry's `url` to its repo's canonical name. If the repo matches, read
@@ -182,27 +217,25 @@ in order, each step recording an error string and continuing on failure:
      curated allowlist (a handful of entries) — most repos are not on it.
    - **`desktop_version` is not gated on catalog membership.** When the repo isn't in the
      catalog (or the catalog is unavailable), the path is inferred instead from the generated
-     package dir (`<something>-workflow/VERSION.yaml`, discovered via the repo tree on `main`)
-     and read the same way — every public workflow with a compiled package gets a
-     `desktop_version` regardless of whether Desktop's catalog has picked it up yet. A missing
-     tree or file is not an error; only an unexpected failure while reading it is.
-   - If branch `ecoscope-web` exists, read `VERSION.yaml` at the same path (catalog or
-     inferred) on that branch; if there is no path yet, infer one from the `ecoscope-web` tree
-     directly.
-4. Latest `test.yml` run on the default branch → `conclusion`, `html_url`; if the repo has no
-   `test.yml` workflow, fall back to `ci.yml` the same way; null if neither exists.
-5. Open issues in the repo (`state=open`, excluding items with `pull_request` and items whose
-   issue type is `Workflow` — an epic living in the same repo as its workflow otherwise shows
-   up as one of its own repo issues) → number, title, url, labels, created_at, assignee login.
-6. `pixi.toml` on the default branch → the `wt-compiler` pin from `[dependencies]`
-   (`wt_compiler_version`; null if the file, table, or key is absent — this is a real gap for
-   pre-`wt`-tooling repos, not an error).
-7. `spec.yaml`'s top-level `requirements:` list (read alongside `metadata:` in step 2, with the
-   same `ecoscope-web` fallback) → `task_libraries`, one `{name, version, channel}` entry per
-   requirement, in declared order.
+     package dir (`<something>-workflow/VERSION.yaml`, discovered via `GET
+     /repos/{repo}/git/trees/{ref}?recursive=1` on `main`) and read the same way — every
+     public workflow with a compiled package gets a `desktop_version` regardless of whether
+     Desktop's catalog has picked it up yet. A missing tree or file is not an error; only an
+     unexpected failure while reading it is.
+   - If `webBranch` was non-null, read `VERSION.yaml` at the same path (catalog or inferred)
+     on `ecoscope-web`; if there is no path yet, infer one from that branch's tree directly.
+6. Latest `test.yml` run on the default branch (REST — Actions data has no equivalent GraphQL
+   shape) → `conclusion`, `html_url`; if the repo has no `test.yml` workflow, fall back to
+   `ci.yml` the same way; null if neither exists.
+7. Open issues in the repo (REST, `state=open`, excluding items with `pull_request` and items
+   whose issue type is `Workflow` — the epic itself, when it lives in the same repo) → number,
+   title, url, labels, created_at, assignee login.
 
 One HTTP helper handles the token, pagination, and a bounded retry on 403 rate-limit
-responses. ~7 calls per repo; well under the limits for a PAT.
+responses. Roughly 4-6 calls per repo now (down from ~8-11 before the query consolidation):
+one `REPO_QUERY`, plus REST for the version tree-walk(s), CI, and issues — well under the
+limits for a PAT, and importantly avoids the GitHub Search API (30 req/min) entirely; only
+`discover.py` uses Search, and only for the handful of *unregistered* repos each run.
 
 `--registry`, `--out`, `--only <id>` flags for local runs. Exit non-zero only on invalid
 registry or an uncaught exception.
@@ -302,19 +335,30 @@ link to each, a badge when `has_workflow_issue` is true ("has Workflow issue") a
 
 ## Testing
 
+- `monitor/tests/test_epic.py` — pure unit tests for `build_epic_record` (given a GraphQL
+  issue node, not a fetch) and `continue_sub_issues` (pagination continuation, GitHub client
+  replaced by a fake): status/priority/size/project from project #9 preferred over another
+  project, sub-issue pagination, non-`Workflow` type recorded as error, missing `Project` text
+  field yields null, no assignees yields `[]`, a missing `url` on the issue falls back to the
+  caller-supplied one.
 - `monitor/tests/test_collect.py` — flat pytest functions; GitHub client replaced by a fake
-  keyed on URL. Cases: registry validation (duplicate id, bad epic URL, neither repo nor
-  epic, same repo used by two ids); epic parsing (status/priority from project #9 preferred over another project,
-  sub-issue pagination, non-Workflow type recorded as error, missing epic yields null); flat
-  and nested-components outputs flatten identically; private repo → excluded from the snapshot even when
-  in the catalog; desktop version falls back to a tree-discovered path when the repo is not in
+  keyed on URL, with a small builder (`repo_query_response`) for the combined `REPO_QUERY`
+  GraphQL response shape (and `add_repo_query_multi` for tests needing distinct responses per
+  repo, dispatched on the query's `owner`/`name` variables since all GraphQL calls share one
+  URL). Cases: registry validation (duplicate id, missing repo, same repo used by two ids);
+  epic resolution folded into the combined query (repo not found via a null `repository` vs.
+  a GraphQL `errors` array, both isolated to one error string; a malformed epic node's build
+  failure isolated from the rest of the record; sub-issue pagination continuing past the first
+  page); flat and nested-components outputs flatten identically; private repo → excluded from
+  the snapshot; desktop version falls back to a tree-discovered path when the repo is not in
   the catalog, and is null (not an error) when no `VERSION.yaml` exists anywhere; missing
-  `ecoscope-web` branch → null web version; unknown indicator flagged; alias mapping; 404 on
-  one repo isolates to that record; issues exclude pull requests and the epic's own `Workflow`-
-  typed issue; `task_libraries` read from `spec.yaml`'s `requirements:`; `wt_compiler_version`
-  read from `pixi.toml`'s `[dependencies]`, null (not an error) when the file or key is absent;
-  CI status falls back from `test.yml` to `ci.yml` when the former doesn't exist, preferring
-  `test.yml` when both do; priority/status sort order helper.
+  `ecoscope-web` branch/blob → null web version/metadata; unknown indicator flagged; alias
+  mapping (registry `repo` vs. the query's resolved `nameWithOwner`); issues exclude pull
+  requests and the epic's own `Workflow`-typed issue; `task_libraries` read from the same
+  `spec`/`webSpec` blob's `requirements:`; `wt_compiler_version` read from the `pixi` blob's
+  `[dependencies]`, null (not an error) when the blob or key is absent; CI status falls back
+  from `test.yml` to `ci.yml` when the former doesn't exist, preferring `test.yml` when both
+  do; priority/status sort order helper.
 - `monitor/tests/test_discover.py` — root `spec.yaml` detection; three-group diff;
   `has_metadata` true/false on the `metadata:` block, false when `spec.yaml` is absent;
   `has_workflow_issue` true/false on the search API's `total_count`.

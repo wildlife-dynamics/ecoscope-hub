@@ -1,20 +1,10 @@
-import re
 from pathlib import Path
 
 import yaml
 
-EPIC_URL_RE = re.compile(r"^https://github\.com/([^/]+)/([^/]+)/issues/(\d+)/?$")
-
 
 class RegistryError(Exception):
     pass
-
-
-def parse_epic_url(url):
-    m = EPIC_URL_RE.match(url or "")
-    if not m:
-        raise RegistryError(f"epic is not a GitHub issue URL: {url!r}")
-    return m.group(1), m.group(2), int(m.group(3))
 
 
 def load_registry(path):
@@ -31,17 +21,13 @@ def load_registry(path):
             raise RegistryError(f"duplicate id: {wid}")
         seen.add(wid)
         repo = item.get("repo") or None
-        epic = item.get("epic") or None
-        if not repo and not epic:
-            raise RegistryError(f"{wid}: needs repo or epic")
-        if repo:
-            key = repo.lower()
-            if key in seen_repos:
-                raise RegistryError(f"repo {repo} is used by both {seen_repos[key]!r} and {wid!r}; each repo may back only one workflow")
-            seen_repos[key] = wid
-        if epic:
-            parse_epic_url(epic)
-        entries.append({"id": wid, "repo": repo, "epic": epic})
+        if not repo:
+            raise RegistryError(f"{wid}: needs a repo")
+        key = repo.lower()
+        if key in seen_repos:
+            raise RegistryError(f"repo {repo} is used by both {seen_repos[key]!r} and {wid!r}; each repo may back only one workflow")
+        seen_repos[key] = wid
+        entries.append({"id": wid, "repo": repo})
     return entries
 
 

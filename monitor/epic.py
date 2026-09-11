@@ -1,35 +1,13 @@
-from gh import GitHubError
-from metadata import parse_epic_url
-
 WD_PROJECT_NUMBER = 9
 EPIC_TYPES = {"Workflow", "Epic"}
 FIELD_KEYS = {"Status": "status", "Priority": "priority", "Size": "size", "Project": "project"}
 
-QUERY = """
+# Continuation query for repos whose latest epic has more than 100 sub-issues (rare).
+# The first page comes from collect.py's REPO_QUERY, keyed on the same issue number.
+SUB_ISSUES_QUERY = """
 query($owner: String!, $name: String!, $number: Int!, $after: String) {
   repository(owner: $owner, name: $name) {
     issue(number: $number) {
-      title state url
-      issueType { name }
-      assignees(first: 10) { nodes { login } }
-      subIssuesSummary { total completed }
-      projectItems(first: 20) {
-        nodes {
-          project { number title url }
-          fieldValues(first: 30) {
-            nodes {
-              ... on ProjectV2ItemFieldSingleSelectValue {
-                name
-                field { ... on ProjectV2SingleSelectField { name } }
-              }
-              ... on ProjectV2ItemFieldTextValue {
-                text
-                field { ... on ProjectV2Field { name } }
-              }
-            }
-          }
-        }
-      }
       subIssues(first: 100, after: $after) {
         pageInfo { hasNextPage endCursor }
         nodes {
@@ -75,21 +53,11 @@ def _sub_issue(node):
     }
 
 
-def fetch_epic(client, url):
-    owner, name, number = parse_epic_url(url)
-    after, issue, sub_issues = None, None, []
-    while True:
-        data = client.graphql(QUERY, {"owner": owner, "name": name, "number": number, "after": after})
-        page = (data.get("repository") or {}).get("issue")
-        if page is None:
-            raise GitHubError(f"epic not found: {url}")
-        issue = issue or page
-        sub_issues.extend(_sub_issue(n) for n in page["subIssues"]["nodes"])
-        info = page["subIssues"]["pageInfo"]
-        if not info.get("hasNextPage"):
-            break
-        after = info["endCursor"]
-
+def build_epic_record(issue, url):
+    """Build (record, errors) from a GraphQL issue node — the shape returned by
+    collect.py's REPO_QUERY `epics.nodes[0]`. `issue["subIssues"]["nodes"]` holds
+    at most the first page; pass its pageInfo to continue_sub_issues() for more.
+    """
     items = issue.get("projectItems", {}).get("nodes", [])
     fields = _pick_fields(items)
     issue_type = (issue.get("issueType") or {}).get("name")
@@ -98,6 +66,7 @@ def fetch_epic(client, url):
         errors.append(f"epic issue type is {issue_type!r}, expected Workflow or Epic")
     summary = issue.get("subIssuesSummary") or {}
     assignees = [n["login"] for n in issue.get("assignees", {}).get("nodes", []) if n.get("login")]
+    sub_issues = [_sub_issue(n) for n in issue.get("subIssues", {}).get("nodes", [])]
     record = {
         "url": issue.get("url") or url,
         "title": issue.get("title"),
@@ -113,3 +82,19 @@ def fetch_epic(client, url):
         "sub_issues_completed": summary.get("completed", 0),
     }
     return record, errors
+
+
+def continue_sub_issues(client, owner, name, number, after):
+    """Fetch sub-issue pages beyond the first 100 (rare)."""
+    sub_issues = []
+    while True:
+        data = client.graphql(SUB_ISSUES_QUERY, {"owner": owner, "name": name, "number": number, "after": after})
+        page = (data.get("repository") or {}).get("issue")
+        if page is None:
+            break
+        sub_issues.extend(_sub_issue(n) for n in page["subIssues"]["nodes"])
+        info = page["subIssues"]["pageInfo"]
+        if not info.get("hasNextPage"):
+            break
+        after = info["endCursor"]
+    return sub_issues
