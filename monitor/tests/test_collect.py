@@ -1,7 +1,7 @@
 import json
 
 from conftest import FakeResponse
-from collect import CATALOG_URL, build, collect_workflow, fetch_catalog, find_version_path, main, resolve_catalog
+from collect import CATALOG_URL, build, collect_workflow, fetch_catalog, find_version_path, main, resolve_catalog, _ci
 from gh import API
 
 SPEC = """
@@ -42,6 +42,10 @@ def add_tree(session, repo="o/r", ref="main", paths=("pkg-workflow/VERSION.yaml"
 
 def add_ci(session, repo="o/r", conclusion="success"):
     session.add("GET", f"{API}/repos/{repo}/actions/workflows/test.yml/runs", FakeResponse(200, {"workflow_runs": [{"conclusion": conclusion, "html_url": "https://ci/1"}]}))
+
+
+def add_ci_yml(session, repo="o/r", conclusion="success"):
+    session.add("GET", f"{API}/repos/{repo}/actions/workflows/ci.yml/runs", FakeResponse(200, {"workflow_runs": [{"conclusion": conclusion, "html_url": "https://ci/2"}]}))
 
 
 def add_issues(session, repo="o/r"):
@@ -305,6 +309,21 @@ def test_collect_workflow_no_ci_workflow_file(client, session):
     record = collect_workflow(full_entry(), client, {}, VOCAB)
     assert record["ci_status"] is None and record["ci_url"] is None
     assert record["errors"] == []
+
+
+def test_ci_falls_back_to_ci_yml_when_test_yml_absent(client, session):
+    add_ci_yml(session, conclusion="failure")
+    assert _ci(client, "o/r", "main") == ("failure", "https://ci/2")
+
+
+def test_ci_prefers_test_yml_over_ci_yml(client, session):
+    add_ci(session)
+    add_ci_yml(session, conclusion="failure")
+    assert _ci(client, "o/r", "main") == ("success", "https://ci/1")
+
+
+def test_ci_null_when_neither_workflow_file_exists(client, session):
+    assert _ci(client, "o/r", "main") == (None, None)
 
 
 def test_collect_workflow_entry_without_repo(client, session):

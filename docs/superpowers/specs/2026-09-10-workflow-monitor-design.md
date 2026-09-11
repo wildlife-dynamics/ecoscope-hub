@@ -188,7 +188,8 @@ in order, each step recording an error string and continuing on failure:
    - If branch `ecoscope-web` exists, read `VERSION.yaml` at the same path (catalog or
      inferred) on that branch; if there is no path yet, infer one from the `ecoscope-web` tree
      directly.
-4. Latest `test.yml` run on the default branch → `conclusion`, `html_url`; null if absent.
+4. Latest `test.yml` run on the default branch → `conclusion`, `html_url`; if the repo has no
+   `test.yml` workflow, fall back to `ci.yml` the same way; null if neither exists.
 5. Open issues in the repo (`state=open`, excluding items with `pull_request` and items whose
    issue type is `Workflow` — an epic living in the same repo as its workflow otherwise shows
    up as one of its own repo issues) → number, title, url, labels, created_at, assignee login.
@@ -306,7 +307,8 @@ link to each, a badge when `has_workflow_issue` is true ("has Workflow issue") a
   one repo isolates to that record; issues exclude pull requests and the epic's own `Workflow`-
   typed issue; `task_libraries` read from `spec.yaml`'s `requirements:`; `wt_compiler_version`
   read from `pixi.toml`'s `[dependencies]`, null (not an error) when the file or key is absent;
-  priority/status sort order helper.
+  CI status falls back from `test.yml` to `ci.yml` when the former doesn't exist, preferring
+  `test.yml` when both do; priority/status sort order helper.
 - `monitor/tests/test_discover.py` — root `spec.yaml` detection; three-group diff;
   `has_metadata` true/false on the `metadata:` block, false when `spec.yaml` is absent;
   `has_workflow_issue` true/false on the search API's `total_count`.

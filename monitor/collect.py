@@ -94,15 +94,20 @@ def _read_wt_compiler_version(client, repo, ref):
     return version if isinstance(version, str) else None
 
 
+CI_WORKFLOW_FILES = ("test.yml", "ci.yml")
+
+
 def _ci(client, repo, branch):
-    try:
-        runs = client.get(f"/repos/{repo}/actions/workflows/test.yml/runs", params={"branch": branch, "per_page": 1})
-    except NotFound:
-        return None, None
-    latest = (runs.get("workflow_runs") or [None])[0]
-    if not latest:
-        return None, None
-    return latest.get("conclusion"), latest.get("html_url")
+    for workflow_file in CI_WORKFLOW_FILES:
+        try:
+            runs = client.get(f"/repos/{repo}/actions/workflows/{workflow_file}/runs", params={"branch": branch, "per_page": 1})
+        except NotFound:
+            continue
+        latest = (runs.get("workflow_runs") or [None])[0]
+        if not latest:
+            return None, None
+        return latest.get("conclusion"), latest.get("html_url")
+    return None, None
 
 
 def _issues(client, repo):
