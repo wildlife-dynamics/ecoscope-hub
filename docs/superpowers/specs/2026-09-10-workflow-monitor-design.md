@@ -266,9 +266,10 @@ chips).
 - Badges in the Workflow cell for `metadata_missing`, `spec_missing`, `archived`, no epic,
   `unknown_indicators`, and `errors`. Status, priority, and CI colour-coded.
 - Row click opens a modal (open id in the URL hash): repo link, last CI run link, "Edit in
-  registry" link; description (with its `metadata_source` when set); maintainers; epic link
-  with its state, size, sub-issue progress, and assignees; the output list (name, type,
-  description, indicator chips); **Repo issues** (the repo's open issues, excluding epics, with
+  registry" link; description (with its `metadata_source` when set); maintainers; a **Status
+  Tracking** block linking to the epic with its state, size, and assignees (no issue type or
+  sub-issue count); the output list (name, type, description, indicator chips); **Repo
+  issues** (the repo's open issues, excluding epics, with
   number, title, labels, age, assignee, each linking to GitHub); last, a **Build** block
   (`wt_compiler_version` and the `task_libraries` list — name and version only, no channel).
   There is no separate "Tracked work" list of

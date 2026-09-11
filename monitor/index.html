@@ -299,7 +299,7 @@
   }
   function renderDetail(w) {
     const e = w.epic;
-    const epicBlock = e ? `<p>${link(e.url, e.title)} <span class="muted">· ${esc(e.state.toLowerCase())} · ${esc(e.type || 'untyped')}${e.size ? ' · size ' + esc(e.size) : ''} · ${e.sub_issues_completed}/${e.sub_issues_total} sub-issues done${e.assignees?.length ? ' · assigned to ' + esc(e.assignees.join(', ')) : ''}</span></p>` : '<p class="muted">No epic linked.</p>';
+    const epicBlock = e ? `<p>${link(e.url, e.title)} <span class="muted">· ${esc(e.state.toLowerCase())}${e.size ? ' · size ' + esc(e.size) : ''}${e.assignees?.length ? ' · assigned to ' + esc(e.assignees.join(', ')) : ''}</span></p>` : '<p class="muted">No epic linked.</p>';
     const repoLink = w.repo ? link('https://github.com/' + w.repo, w.repo) : '<span class="muted">no repo</span>';
     const maint = w.maintainers.map(m => `${esc(m.name || m.email || '?')}${m.role ? ' <span class="muted">(' + esc(m.role) + ')</span>' : ''}`).join(', ');
     const outputs = w.outputs.map(o => `<li><strong>${esc(o.name)}</strong> — ${chip(o.type)}${o.description ? ' — <span class="muted">' + esc(o.description) + '</span>' : ''} ${o.indicators.map(i => chip(i, 'info')).join('')}</li>`).join('');
@@ -309,7 +309,7 @@
     const errors = w.errors.length ? `<div><h4>Errors</h4><ul>${w.errors.map(x => `<li class="badge bad">${esc(x)}</li>`).join('')}</ul></div>` : '';
     return `<div class="detail">
       <div><h4>Repo</h4><p>${repoLink}${w.ci_url ? ' · ' + link(w.ci_url, 'last CI run') : ''} · <a href="https://github.com/wildlife-dynamics/ecoscope-hub/edit/main/monitor/registry.yaml" target="_blank" rel="noopener">edit in registry</a></p>
-        ${w.description ? '<h4>Description</h4><p>' + esc(w.description) + (w.metadata_source ? ' <span class="muted">(' + esc(w.metadata_source) + ')</span>' : '') + '</p>' : ''}${maint ? '<h4>Maintainers</h4><p>' + maint + '</p>' : ''}<h4>Epic</h4>${epicBlock}</div>
+        ${w.description ? '<h4>Description</h4><p>' + esc(w.description) + (w.metadata_source ? ' <span class="muted">(' + esc(w.metadata_source) + ')</span>' : '') + '</p>' : ''}${maint ? '<h4>Maintainers</h4><p>' + maint + '</p>' : ''}<h4>Status Tracking</h4>${epicBlock}</div>
       <div><h4>Outputs</h4>${outputs ? '<ul>' + outputs + '</ul>' : '<p class="muted">None declared.</p>'}</div>
       <div><h4>Repo issues (${w.issues.length})</h4>${issues ? '<ul>' + issues + '</ul>' : '<p class="muted">None open.</p>'}${errors}</div>
       ${build}
