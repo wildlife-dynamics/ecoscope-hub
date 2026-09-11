@@ -15,6 +15,7 @@ workflows:
     epic: https://github.com/wildlife-dynamics/wt-download-subject-tracks/issues/21
   - id: wt-hydrological-monitoring
     repo: wildlife-dynamics/wt-hydrological-monitoring
+    epic: https://github.com/wildlife-dynamics/wt-hydrological-monitoring/issues/13
   - id: patrol-effort-table
     repo: wildlife-dynamics/patrol-effort-table
     epic: https://github.com/wildlife-dynamics/patrol-effort-table/issues/1
@@ -40,6 +41,7 @@ workflows:
     repo: wildlife-dynamics/speedmap
   - id: tahmo-wx
     repo: wildlife-dynamics/tahmo-wx
+    epic: https://github.com/wildlife-dynamics/tahmo-wx/issues/19
   - id: wt-individual-event
     repo: wildlife-dynamics/wt-individual-event
   - id: mep-subject-tracking
