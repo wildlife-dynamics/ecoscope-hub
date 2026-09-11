@@ -64,14 +64,18 @@ workflows:
     repo: wildlife-dynamics/mep-monthly-report
   - id: mt-wildlife
     repo: wildlife-dynamics/mt-wildlife
+    epic: https://github.com/wildlife-dynamics/mt-wildlife/issues/9
   - id: wt-hansen-deforestation
     repo: wildlife-dynamics/wt-hansen-deforestation
   - id: mt-rhino
     repo: wildlife-dynamics/mt-rhino
+    epic: https://github.com/wildlife-dynamics/mt-rhino/issues/6
   - id: mt-security
     repo: wildlife-dynamics/mt-security
+    epic: https://github.com/wildlife-dynamics/mt-security/issues/3
   - id: mt-tourism
     repo: wildlife-dynamics/mt-tourism
+    epic: https://github.com/wildlife-dynamics/mt-tourism/issues/3
   - id: ste-mapbook
     repo: wildlife-dynamics/ste-mapbook
   - id: aerial-survey-roi
