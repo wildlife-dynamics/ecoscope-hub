@@ -49,7 +49,8 @@ Nothing else is stored here. Status, priority, size, and the `Project` field are
 the epic in GitHub Projects and read on every build.
 
 Validation (build fails on violation): duplicate `id`, `epic` not a GitHub issue URL, neither
-`repo` nor `epic` present.
+`repo` nor `epic` present, the same `repo` used by more than one entry (each repo backs at
+most one workflow).
 
 Editing: the page links each row to its epic (edit status/priority there) and to
 `registry.yaml` in GitHub's web editor (add or retire a workflow). Committing there triggers a
@@ -303,7 +304,7 @@ link to each, a badge when `has_workflow_issue` is true ("has Workflow issue") a
 
 - `monitor/tests/test_collect.py` — flat pytest functions; GitHub client replaced by a fake
   keyed on URL. Cases: registry validation (duplicate id, bad epic URL, neither repo nor
-  epic); epic parsing (status/priority from project #9 preferred over another project,
+  epic, same repo used by two ids); epic parsing (status/priority from project #9 preferred over another project,
   sub-issue pagination, non-Workflow type recorded as error, missing epic yields null); flat
   and nested-components outputs flatten identically; private repo → excluded from the snapshot even when
   in the catalog; desktop version falls back to a tree-discovered path when the repo is not in
