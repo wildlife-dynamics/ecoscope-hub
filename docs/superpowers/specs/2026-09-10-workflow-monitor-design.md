@@ -261,7 +261,8 @@ priority chips) that excludes workflows with no epic status and workflows whose 
 **Tabs**: Workflows, Outputs.
 
 **Workflows tab**
-- Filter bar: text search over id, name, indicators; dropdowns for project, status, assignee
+- Filter bar: text search over id, name, indicators, description, repo, project, epic
+  assignees, output names, and maintainer name/email; dropdowns for project, status, assignee
   (the epic's assignee logins), priority, output type, availability (Desktop / Web / none).
   Filter state lives in the URL hash.
 - Table, default sort by priority (P0 first, missing last), then status in project order,

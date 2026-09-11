@@ -126,7 +126,7 @@
 
 <section id="tab-workflows">
   <div class="filters">
-    <input id="wf-q" type="search" placeholder="Search id, name, indicators…">
+    <input id="wf-q" type="search" placeholder="Search workflows…">
     <select id="wf-project"><option value="">All projects</option></select>
     <select id="wf-status"><option value="">All statuses</option></select>
     <select id="wf-assignee"><option value="">All assignees</option></select>
@@ -208,6 +208,12 @@
   }
   function uniq(list) { return [...new Set(list.filter(Boolean))]; }
   function projectOf(w) { return w.epic?.project || ''; }
+  function searchIndex(w) {
+    const maint = w.maintainers.map(m => `${m.name || ''} ${m.email || ''}`).join(' ');
+    const outputs = w.outputs.map(o => o.name).join(' ');
+    return [w.id, w.name, w.indicators.join(' '), w.description, w.repo, projectOf(w),
+            (w.epic?.assignees || []).join(' '), outputs, maint].join(' ').toLowerCase();
+  }
   function openWork(w) {
     const subs = (w.epic?.sub_issues || []).filter(s => s.state === 'OPEN').length;
     return subs + (w.open_issue_count || 0);
@@ -253,7 +259,7 @@
   function filteredWorkflows() {
     const f = currentFilters(); const q = f.q.trim().toLowerCase();
     return state.workflows.filter(w => {
-      if (q && !(w.id + ' ' + w.name + ' ' + w.indicators.join(' ')).toLowerCase().includes(q)) return false;
+      if (q && !searchIndex(w).includes(q)) return false;
       if (f.project && projectOf(w) !== f.project) return false;
       if (f.status && (w.epic?.status || '') !== f.status) return false;
       if (f.assignee && !(w.epic?.assignees || []).includes(f.assignee)) return false;
