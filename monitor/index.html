@@ -120,11 +120,24 @@
 </div>
 
 <nav class="tabs">
-  <button data-tab="workflows" class="active">Workflows</button>
-  <button data-tab="outputs">Outputs</button>
+  <button data-tab="outputs" class="active">Outputs</button>
+  <button data-tab="workflows">Workflows</button>
 </nav>
 
-<section id="tab-workflows">
+<section id="tab-outputs">
+  <div class="filters">
+    <input id="out-q" type="search" placeholder="Search output name or description…">
+    <select id="out-indicator"><option value="">All indicators</option></select>
+    <select id="out-otype"><option value="">All types</option></select>
+    <select id="out-project"><option value="">All projects</option></select>
+  </div>
+  <div class="count" id="out-count"></div>
+  <div class="tablewrap"><table id="out-table"><thead><tr>
+    <th>Workflow</th><th>Output</th><th>Type</th><th>Description</th><th>Indicators</th><th>Project</th>
+  </tr></thead><tbody></tbody></table></div>
+</section>
+
+<section id="tab-workflows" hidden>
   <div class="filters">
     <input id="wf-q" type="search" placeholder="Search workflows…">
     <select id="wf-project"><option value="">All projects</option></select>
@@ -144,18 +157,6 @@
     <th data-key="priority">Priority</th><th data-key="name">Workflow</th><th data-key="project">Project</th>
     <th data-key="status">Status</th><th data-key="assignee">Assignee</th><th data-key="desktop">Desktop</th><th data-key="web">Web</th>
     <th data-key="outputs">Outputs</th><th data-key="ci">CI</th><th data-key="open">Open work</th>
-  </tr></thead><tbody></tbody></table></div>
-</section>
-
-<section id="tab-outputs" hidden>
-  <div class="filters">
-    <input id="out-q" type="search" placeholder="Search output name or description…">
-    <select id="out-indicator"><option value="">All indicators</option></select>
-    <select id="out-otype"><option value="">All types</option></select>
-  </div>
-  <div class="count" id="out-count"></div>
-  <div class="tablewrap"><table id="out-table"><thead><tr>
-    <th>Workflow</th><th>Output</th><th>Type</th><th>Description</th><th>Indicators</th>
   </tr></thead><tbody></tbody></table></div>
 </section>
 
@@ -197,6 +198,7 @@
       assignee: $('#wf-assignee').value,
       priority: $('#wf-priority').value, otype: $('#wf-otype').value, avail: $('#wf-avail').value,
       oq: $('#out-q').value, oind: $('#out-indicator').value, ootype: $('#out-otype').value,
+      oproject: $('#out-project').value,
       open: state.open || '',
     };
   }
@@ -334,14 +336,16 @@
       if (q && !(o.name + ' ' + o.description).toLowerCase().includes(q)) return false;
       if (f.oind && !o.indicators.includes(f.oind)) return false;
       if (f.ootype && o.type !== f.ootype) return false;
+      if (f.oproject && projectOf(w) !== f.oproject) return false;
       return true;
     });
     $('#out-count').textContent = `${rows.length} of ${all.length} outputs`;
     const tbody = $('#out-table tbody');
-    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty">No outputs match.</td></tr>'; return; }
+    if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No outputs match.</td></tr>'; return; }
     tbody.innerHTML = rows.map(({ w, o }) => `<tr>
       <td><a href="#" data-open="${esc(w.id)}">${esc(w.name)}</a></td><td>${esc(o.name)}</td><td>${chip(o.type)}</td>
       <td>${esc(o.description)}</td><td>${o.indicators.map(i => chip(i, 'info')).join('')}</td>
+      <td>${chip(projectOf(w)) || '<span class="muted">—</span>'}</td>
     </tr>`).join('');
   }
 
@@ -448,7 +452,7 @@
     }
 
     const projects = uniq(state.workflows.map(projectOf)).sort();
-    fillSelect($('#wf-project'), projects);
+    fillSelect($('#wf-project'), projects); fillSelect($('#out-project'), projects);
     fillSelect($('#wf-status'), uniq(state.workflows.map(w => w.epic?.status)).sort((a, b) => rank(STATUS_ORDER, a) - rank(STATUS_ORDER, b)));
     fillSelect($('#wf-assignee'), uniq(state.workflows.flatMap(w => w.epic?.assignees || [])).sort());
     fillSelect($('#wf-priority'), uniq(state.workflows.map(w => w.epic?.priority)).sort());
@@ -458,10 +462,10 @@
 
     const h = readHash();
     const map = { q: '#wf-q', project: '#wf-project', status: '#wf-status', assignee: '#wf-assignee', priority: '#wf-priority', otype: '#wf-otype', avail: '#wf-avail',
-                  oq: '#out-q', oind: '#out-indicator', ootype: '#out-otype' };
+                  oq: '#out-q', oind: '#out-indicator', ootype: '#out-otype', oproject: '#out-project' };
     for (const [k, sel] of Object.entries(map)) if (h[k] != null) $(sel).value = h[k];
     state.open = h.open || null;
-    showTab(h.tab === 'outputs' ? 'outputs' : 'workflows');
+    showTab(h.tab === 'workflows' ? 'workflows' : 'outputs');
 
     for (const sel of Object.values(map)) $(sel).addEventListener('input', renderAll);
     for (const b of document.querySelectorAll('nav.tabs button')) b.addEventListener('click', () => { showTab(b.dataset.tab); writeHash(currentFilters()); });
@@ -492,7 +496,7 @@
       $('#generated').textContent = 'failed to load data.json: ' + err.message;
       $('#generated').classList.add('stale');
       $('#wf-table tbody').innerHTML = '<tr><td colspan="10" class="empty">Could not load the snapshot. Check the latest monitor run in Actions.</td></tr>';
-      $('#out-table tbody').innerHTML = '<tr><td colspan="5" class="empty">Could not load the snapshot.</td></tr>';
+      $('#out-table tbody').innerHTML = '<tr><td colspan="6" class="empty">Could not load the snapshot.</td></tr>';
       $('#wf-count').textContent = '';
       $('#out-count').textContent = '';
       $('#unreg summary').textContent = 'Unregistered workflow repos (—)';

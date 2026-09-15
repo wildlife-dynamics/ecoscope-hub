@@ -295,7 +295,8 @@ by Priority" bar chart (`P0`..`P3` plus "No priority", bars coloured to match th
 priority chips) that excludes workflows with no epic status and workflows whose epic status is
 `Done` — it counts only work that is both tracked and still outstanding.
 
-**Tabs**: Workflows, Outputs.
+**Tabs**: Outputs, Workflows — in that order; **Outputs is the default tab** (both on first
+load and whenever the URL hash has no `tab=` value).
 
 **Workflows tab**
 - Filter bar: text search over id, name, indicators, description, repo, project, epic
@@ -322,10 +323,10 @@ priority chips) that excludes workflows with no epic status and workflows whose 
   block is the only place that data still surfaces on the page.
 
 **Outputs tab**
-- One row per output across the fleet: `Workflow | Output | Type | Description | Indicators`
-- Filters: indicator, type; text search over output name and description. No project filter
-  here (the Workflows tab's project filter already covers it). Clicking the workflow cell
-  opens its modal.
+- One row per output across the fleet: `Workflow | Output | Type | Description | Indicators |
+  Project`
+- Filters: indicator, type, project; text search over output name and description. Clicking
+  the workflow cell opens its modal.
 
 **Unregistered panel**: collapsed section at the bottom listing `unregistered` repos with a
 link to each, a badge when `has_workflow_issue` is true ("has Workflow issue") and when
